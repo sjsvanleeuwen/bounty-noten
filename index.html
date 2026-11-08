@@ -1,0 +1,964 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bounty en de Notenmonsters</title>
+<link rel="icon" href="img/julian-bounty.jpg">
+<style>
+/* Layout: zelfde papier-en-stift-stijl als Bountyland. Laptop: notenbalk + scène links, greep-paneel rechts. */
+@font-face{font-family:"Baloo 2";font-weight:700;src:url(fonts/baloo-2-latin-700-normal.woff2) format("woff2");font-display:swap}
+@font-face{font-family:"Baloo 2";font-weight:800;src:url(fonts/baloo-2-latin-800-normal.woff2) format("woff2");font-display:swap}
+@font-face{font-family:"Permanent Marker";src:url(fonts/permanent-marker-latin-400-normal.woff2) format("woff2");font-display:swap}
+@font-face{font-family:"Noto Music";src:url(fonts/noto-music.woff2) format("woff2");font-display:block}
+:root{
+  --paper:#f5edd8; --paper2:#eadcb8; --ink:#16130f; --ink-soft:#4a4238;
+  --gold:#f5b931; --red:#e4483b; --green:#3bb35a; --blue:#2f7de1; --purple:#5b2a86; --storm:#34456b;
+  --fdark:#1d2f6f;
+  --display:"Permanent Marker","Comic Sans MS","Chalkboard SE",cursive;
+  --ui:"Baloo 2","Trebuchet MS","Segoe UI",system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{font-family:var(--ui);font-weight:700;color:var(--ink);background:#7cc7f2;overflow:hidden;-webkit-user-select:none;user-select:none}
+button{font-family:var(--ui);color:var(--ink);font-weight:800}
+button:focus-visible{outline:3px dashed var(--blue);outline-offset:3px}
+.mk{font-family:var(--display);font-weight:400;margin:0;line-height:1.05;text-wrap:balance}
+p{margin:0;line-height:1.45}
+
+/* achtergrond Bountyland */
+#sky{position:fixed;inset:0;background:linear-gradient(#7cc7f2,#bfe6fb 60%,#dff3c8);z-index:0}
+#sky svg{position:absolute;left:0;right:0;bottom:0;width:100%;height:42%}
+
+.screen{position:fixed;inset:0;z-index:10;display:flex;overflow-y:auto;padding:18px}
+.panel{margin:auto;background:var(--paper);border:4px solid var(--ink);border-radius:20px 14px 22px 12px;box-shadow:7px 7px 0 var(--ink);padding:20px 24px;width:100%;max-width:560px;position:relative}
+.btn{font-size:20px;line-height:1;border:3.5px solid var(--ink);border-radius:14px 11px 15px 10px;padding:13px 22px;box-shadow:4px 4px 0 var(--ink);background:var(--gold);cursor:pointer;transition:transform .06s}
+.btn:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--ink)}
+.btn.green{background:var(--green);color:#fff}.btn.red{background:var(--red);color:#fff}.btn.blue{background:var(--blue);color:#fff}.btn.plain{background:var(--paper)}
+.btn.small{font-size:16px;padding:9px 14px;box-shadow:3px 3px 0 var(--ink)}
+.btn:disabled{opacity:.45;cursor:default}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.eyebrow{font-weight:800;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft)}
+.bone-pill{display:inline-flex;align-items:center;gap:6px;font-weight:800;font-size:22px;background:#fff;border:3px solid var(--ink);border-radius:999px;padding:2px 14px 2px 8px;font-variant-numeric:tabular-nums}
+.bone-ico{width:36px;height:19px;flex:none}
+
+/* titel */
+.title-wrap{margin:auto;display:grid;grid-template-columns:1fr 1fr;gap:36px;align-items:center;max-width:980px;width:100%}
+.kicker{font-family:var(--display);color:var(--gold);font-size:24px;transform:rotate(-3deg);text-shadow:2px 2px 0 var(--ink);display:inline-block}
+.logo{font-family:var(--display);font-size:clamp(64px,10vw,124px);line-height:.88;margin:6px 0 0;color:#fff;-webkit-text-stroke:3px var(--ink);text-shadow:5px 5px 0 var(--ink)}
+.logo small{display:block;font-size:.36em;-webkit-text-stroke:2px var(--ink);text-shadow:3px 3px 0 var(--ink);color:var(--gold);margin-top:10px}
+.polaroid{background:#fff;border:4px solid var(--ink);padding:12px 12px 8px;box-shadow:7px 7px 0 var(--ink);transform:rotate(2.5deg)}
+.polaroid img{display:block;width:100%;border:2px solid var(--ink)}
+.polaroid p{font-family:var(--display);text-align:center;font-size:20px;margin-top:6px}
+.players{display:flex;gap:16px;margin-top:22px;flex-wrap:wrap}
+.player{flex:1;min-width:200px;text-align:left;border:4px solid var(--ink);border-radius:18px 12px 20px 12px;box-shadow:6px 6px 0 var(--ink);padding:14px 16px;cursor:pointer;background:var(--paper);display:flex;gap:12px;align-items:center}
+.player:active{transform:translate(3px,3px);box-shadow:2px 2px 0 var(--ink)}
+.player .ico{width:64px;height:64px;flex:none;border:3px solid var(--ink);border-radius:50%;display:grid;place-items:center;background:#fff}
+.player b{font-family:var(--display);font-weight:400;font-size:30px;display:block;line-height:1}
+.player span{font-size:16px;color:var(--ink-soft)}
+.credit{margin-top:16px;font-size:15px;color:var(--ink);background:rgba(255,255,255,.7);display:inline-block;padding:4px 12px;border-radius:10px}
+
+/* kaart */
+.map{margin:auto;width:100%;max-width:1060px}
+.map-head{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:14px}
+.map-head h1{font-size:clamp(34px,4vw,48px);color:#fff;-webkit-text-stroke:2px var(--ink);text-shadow:4px 4px 0 var(--ink)}
+.story{background:var(--paper);border:4px solid var(--ink);border-radius:16px 12px 18px 10px;box-shadow:5px 5px 0 var(--ink);padding:12px 16px;font-size:18px;margin-bottom:16px;display:flex;gap:14px;align-items:center}
+.story svg{width:90px;flex:none}
+.missions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.mcard{position:relative;text-align:left;background:var(--paper);border:4px solid var(--ink);border-radius:16px 12px 18px 10px;box-shadow:5px 5px 0 var(--ink);padding:12px 14px 12px;cursor:pointer;min-height:150px;display:flex;flex-direction:column;gap:4px}
+.mcard:active{transform:translate(3px,3px);box-shadow:2px 2px 0 var(--ink)}
+.mcard .num{font-family:var(--display);font-size:34px;line-height:1}
+.mcard .t{font-size:19px;line-height:1.15}
+.mcard .notes{font-size:15px;color:var(--ink-soft);margin-top:auto}
+.mcard .stars{font-size:24px;letter-spacing:2px;color:#c9b98f}
+.mcard .stars i{font-style:normal;color:var(--gold);-webkit-text-stroke:1px var(--ink)}
+.mcard.locked{background:#ddd5c4;color:#8a7f6c;cursor:default;box-shadow:5px 5px 0 #8a7f6c;border-color:#8a7f6c}
+.mcard.locked.boss{background:#d7cfe0}
+.mcard.locked::after{content:"🔒";position:absolute;right:10px;top:8px;font-size:26px}
+.mcard.boss{background:#e3d3f5}
+.map-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:18px}
+
+/* spelscherm */
+#play{position:fixed;inset:0;z-index:10;display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,32%);grid-template-rows:auto minmax(0,1fr) minmax(170px,30vh);gap:14px;padding:14px}
+.hud{grid-column:1/-1;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.hud .who{font-family:var(--display);font-size:24px;background:var(--paper);border:3px solid var(--ink);border-radius:999px;padding:2px 16px;box-shadow:3px 3px 0 var(--ink)}
+.hud .mtitle{font-size:22px;color:#fff;-webkit-text-stroke:1px var(--ink);text-shadow:2px 2px 0 var(--ink);flex:1;min-width:120px}
+.dots{display:flex;gap:6px}
+.dots i{width:18px;height:18px;border:3px solid var(--ink);border-radius:50%;background:#fff}
+.dots i.done{background:var(--green)}.dots i.now{background:var(--gold)}
+.mic{display:flex;align-items:center;gap:8px;background:var(--paper);border:3px solid var(--ink);border-radius:999px;padding:4px 12px;font-size:15px}
+.mic .bar{width:70px;height:12px;border:2px solid var(--ink);border-radius:6px;overflow:hidden;background:#fff}
+.mic .bar i{display:block;height:100%;width:0;background:var(--green);transition:width .06s}
+.mic.off .bar i{background:#bbb}
+.staff-card{grid-column:1;grid-row:2;background:#fffdf6;border:4px solid var(--ink);border-radius:20px 14px 22px 12px;box-shadow:7px 7px 0 var(--ink);position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.staff-card svg{width:100%;height:100%;max-height:100%}
+.staff-msg{position:absolute;top:10px;left:16px;right:16px;display:flex;justify-content:space-between;align-items:center;gap:10px;pointer-events:none}
+.staff-msg .tag{font-size:17px;background:var(--gold);border:3px solid var(--ink);border-radius:10px;padding:2px 10px;pointer-events:auto}
+.staff-msg .tag.new{background:#ffd9e8}
+.scene{grid-column:1;grid-row:3;position:relative;border:4px solid var(--ink);border-radius:18px 12px 20px 12px;box-shadow:7px 7px 0 var(--ink);overflow:hidden;background:linear-gradient(#9fd8f7,#d6f0fb 62%,#7fcf67 62%,#5fb84a)}
+.scene .actor{position:absolute;bottom:6%;}
+#bountyActor{left:3%;height:78%;}
+#bountyActor svg{height:100%;width:auto;overflow:visible}
+#monsterActor{left:105%;height:66%;transition:left linear}
+#monsterActor svg{height:100%;width:auto;overflow:visible}
+#monsterActor.boss{height:94%;bottom:2%}
+.bob{animation:bob .5s ease-in-out infinite alternate}
+@keyframes bob{to{transform:translateY(-6%) rotate(-3deg)}}
+.bubble{position:absolute;background:#fff;border:3px solid var(--ink);border-radius:14px;padding:4px 12px;font-size:20px;white-space:nowrap;box-shadow:3px 3px 0 var(--ink);pointer-events:none;z-index:3}
+.woef{font-family:var(--display);font-size:clamp(26px,3vw,40px);color:var(--gold);-webkit-text-stroke:2px var(--ink);position:absolute;pointer-events:none;z-index:4}
+.fly{position:fixed;z-index:50;pointer-events:none;font-size:34px}
+.hpbar{position:absolute;top:10px;right:14px;width:42%;height:22px;border:3px solid var(--ink);border-radius:10px;background:#fff;overflow:hidden;z-index:2}
+.hpbar i{display:block;height:100%;background:var(--purple);transition:width .3s}
+.hpbar b{position:absolute;inset:0;text-align:center;font-size:14px;line-height:16px;color:#fff;-webkit-text-stroke:.5px var(--ink)}
+
+.help{grid-column:2;grid-row:2/4;background:var(--paper);border:4px solid var(--ink);border-radius:20px 14px 22px 12px;box-shadow:7px 7px 0 var(--ink);padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-height:0}
+.help h2{font-family:var(--display);font-weight:400;font-size:30px;margin:0}
+.help .hint{font-size:21px;line-height:1.25;min-height:2.6em}
+.help .hint b{font-family:var(--display);font-weight:400;font-size:1.25em}
+.help .diag{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;background:#fff;border:3px solid var(--ink);border-radius:14px;padding:6px}
+.help .diag svg{width:100%;height:100%;max-height:100%}
+.help .row .btn{flex:1}
+.help.collapsed .diag{opacity:.55}
+.letter-badge{display:inline-grid;place-items:center;min-width:1.6em;height:1.6em;padding:0 .2em;border:3px solid var(--ink);border-radius:12px;background:var(--gold);font-family:var(--display);font-weight:400}
+
+/* modals */
+.modal{position:fixed;inset:0;z-index:40;display:flex;background:rgba(22,19,15,.45);padding:18px;overflow-y:auto}
+.stars-big{font-size:64px;letter-spacing:6px;text-align:center;color:#c9b98f}
+.stars-big i{font-style:normal;color:var(--gold);-webkit-text-stroke:2px var(--ink)}
+.shop-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:14px 0}
+.item{background:#fff;border:3px solid var(--ink);border-radius:14px;padding:10px;text-align:center;display:flex;flex-direction:column;gap:6px;align-items:center}
+.item .em{font-size:40px;line-height:1.1}
+.item.owned{background:#e5f6e2}
+.set-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:2px dashed var(--paper2);flex-wrap:wrap}
+.set-row:last-child{border-bottom:0}
+.seg{display:flex;border:3px solid var(--ink);border-radius:12px;overflow:hidden}
+.seg button{border:0;border-left:2px solid var(--ink);background:#fff;padding:7px 12px;font-size:15px;cursor:pointer}
+.seg button:first-child{border-left:0}
+.seg button.on{background:var(--gold)}
+.toast{position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:60;background:var(--paper);border:3px solid var(--ink);border-radius:12px;padding:8px 16px;box-shadow:4px 4px 0 var(--ink);font-size:18px}
+
+@media (max-width:900px){
+  .title-wrap{grid-template-columns:1fr}
+  .missions{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #play{grid-template-columns:1fr;grid-template-rows:auto minmax(220px,1fr) 150px 260px;overflow-y:auto}
+  .help{grid-column:1;grid-row:4}
+}
+@media (prefers-reduced-motion:reduce){.bob{animation:none}}
+</style>
+</head>
+<body>
+<div id="sky"><svg viewBox="0 0 1000 300" preserveAspectRatio="none" aria-hidden="true">
+  <path d="M0 160 Q120 70 260 140 T540 120 T800 110 T1000 130 V300 H0Z" fill="#8fd16f" stroke="#16130f" stroke-width="4"/>
+  <path d="M0 220 Q200 160 420 210 T820 190 T1000 200 V300 H0Z" fill="#6fbf52" stroke="#16130f" stroke-width="4"/>
+</svg></div>
+
+<!-- titel -->
+<section id="title" class="screen">
+  <div class="title-wrap">
+    <div>
+      <span class="kicker">Muziek in Bountyland</span>
+      <h1 class="logo">Bounty<small>en de Notenmonsters</small></h1>
+      <div class="players" id="playerBtns"></div>
+      <div class="credit">Bounty is bedacht en getekend door Julian</div>
+    </div>
+    <div class="polaroid"><img src="img/julian-bounty.jpg" alt="Julians tekening van Bounty"><p>Bounty, door Julian</p></div>
+  </div>
+</section>
+
+<!-- kaart -->
+<section id="mapScreen" class="screen" hidden>
+  <div class="map">
+    <div class="map-head">
+      <h1 class="mk" id="mapTitle">Lauren · Harp</h1>
+      <div class="row"><span class="bone-pill" id="mapBones"></span></div>
+    </div>
+    <div class="story" id="mapStory"></div>
+    <div class="missions" id="missionGrid"></div>
+    <div class="map-actions">
+      <button class="btn blue" id="btnFree">🎵 Vrij oefenen</button>
+      <button class="btn" id="btnShop">🛍️ Bounty Winkel</button>
+      <button class="btn plain" id="btnSettings">⚙️ Instellingen</button>
+      <button class="btn plain" id="btnSwitch">👋 Andere speler</button>
+    </div>
+  </div>
+</section>
+
+<!-- spel -->
+<section id="play" hidden>
+  <div class="hud">
+    <button class="btn plain small" id="btnQuit">✕ Stop</button>
+    <span class="who" id="hudWho"></span>
+    <span class="mtitle mk" id="hudTitle"></span>
+    <div class="dots" id="hudDots"></div>
+    <span class="bone-pill" id="hudBones"></span>
+    <div class="mic off" id="hudMic" title="Microfoon"><span id="micLabel">🎤</span><div class="bar"><i id="micBar"></i></div></div>
+  </div>
+  <div class="staff-card">
+    <div class="staff-msg"><span id="staffTag"></span><span></span></div>
+    <svg id="staff" viewBox="0 0 640 360" aria-label="Notenbalk"></svg>
+  </div>
+  <div class="scene" id="scene">
+    <div class="actor" id="bountyActor"></div>
+    <div class="actor" id="monsterActor"></div>
+  </div>
+  <aside class="help collapsed" id="help">
+    <div class="row" style="justify-content:space-between"><h2 id="helpTitle">Greep</h2><span class="eyebrow" id="helpSub"></span></div>
+    <div class="hint" id="helpHint">Kijk naar de noot op de balk en speel hem!</div>
+    <div class="diag" id="diag"></div>
+    <div class="row">
+      <button class="btn small" id="btnHelp">💡 Hulp</button>
+      <button class="btn small plain" id="btnListen">🔊 Laat horen</button>
+    </div>
+  </aside>
+</section>
+
+<div id="modal" class="modal" hidden></div>
+
+<script src="pitch.js"></script>
+<script>
+'use strict';
+/* =========================================================
+   Gegevens
+   ========================================================= */
+const PROFILES = [
+  {id:'lauren', name:'Lauren', instr:'harp',  color:'#e4483b'},
+  {id:'julian', name:'Julian', instr:'cello', color:'#2f7de1'},
+];
+const INSTR = {
+  harp:{label:'Harp', clef:'grand', det:{fmin:90,fmax:1050,k:.88,clarity:.75}, range:['G2','G5'],
+    story:'Bou heeft zijn notenmonsters op Bountyland afgestuurd. Ze zijn alleen bang voor harpmuziek! Speel de noot die je op de balk ziet, dan blaft Bounty ze weg.',
+    missions:[
+      {t:'Rechterhand: C, D, E', n:['C4','D4','E4'], b:'De eerste notenmonsters komen eraan! Ze zijn bang voor de middel-C en zijn buren D en E. Zoek de rode C en speel met je rechterhand.'},
+      {t:'Vijf noten', n:['C4','D4','E4','F4','G4'], b:'Er komen meer monsters. Nu heb je vijf noten nodig: van de rode C tot de G. De F is de donkere snaar!'},
+      {t:'Tot de hoge C', n:['C4','D4','E4','F4','G4','A4','B4','C5'], b:'Een hele toonladder! Van de middel-C omhoog tot de volgende rode C.'},
+      {t:'Linkerhand', n:['C3','D3','E3','F3','G3'], b:'Monsters aan de lage kant! Deze noten staan op de onderste balk, met de bassleutel. Speel ze met je linkerhand.'},
+      {t:'Beide handen', n:['C3','D3','E3','F3','G3','A3','B3','C4','D4','E4','F4','G4','A4','B4','C5'], b:'De monsters komen van alle kanten. Kijk goed: bovenste balk is rechterhand, onderste balk is linkerhand.'},
+      {t:'Hoog in de harp', n:['C5','D5','E5','F5','G5'], b:'Hoog in de lucht vliegen kleine monstertjes. Ze zijn bang voor de korte, hoge snaren.'},
+      {t:'Laag in de harp', n:['G2','A2','B2','C3','D3'], b:'Diep onder de grond brommen de lage monsters. Speel de lange snaren met je linkerhand.'},
+      {t:'Eindbaas: Bou', n:['G2','A2','B2','C3','D3','E3','F3','G3','A3','B3','C4','D4','E4','F4','G4','A4','B4','C5','D5','E5','F5','G5'], boss:true, len:16, b:'Daar is Bou zelf! Elke goede noot is een treffer. Raak hem 16 keer en Bountyland is gered!'},
+    ]},
+  cello:{label:'Cello', clef:'bass', det:{fmin:58,fmax:700,k:.88,clarity:.8}, range:['C2','D4'],
+    story:'Bou heeft zijn notenmonsters op Bountyland afgestuurd. Ze zijn alleen bang voor cellomuziek! Speel de noot die je op de balk ziet, dan blaft Bounty ze weg.',
+    missions:[
+      {t:'Lege snaren D en A', n:['D3','A3'], b:'De eerste notenmonsters komen eraan! Ze zijn bang voor de lege D- en A-snaar. Strijk de snaar die je op de balk ziet, zonder iets in te drukken.'},
+      {t:'Alle lege snaren', n:['C2','G2','D3','A3'], b:'Nu doen de dikke snaren ook mee: de G en de C. Kijk goed hoe laag de noot op de balk staat.'},
+      {t:'De D-snaar', n:['D3','E3','F3','G3'], b:'Tijd voor je vingers! Op de D-snaar maak je E, F en G met vinger 1, 2 en 4.'},
+      {t:'De A-snaar', n:['A3','B3','C4','D4'], b:'Nu de A-snaar: B, C en D met vinger 1, 2 en 4. Dezelfde vingers als op de D-snaar!'},
+      {t:'D en A samen', n:['D3','E3','F3','G3','A3','B3','C4','D4'], b:'De monsters komen in een lange rij. Wissel tussen de D-snaar en de A-snaar.'},
+      {t:'De G-snaar', n:['G2','A2','B2','C3'], b:'Lage monsters! Op de G-snaar maak je A, B en C met vinger 1, 3 en 4.'},
+      {t:'De C-snaar', n:['C2','D2','E2','F2'], b:'De allerlaagste snaar. Hier maak je D, E en F met vinger 1, 3 en 4. Brommm!'},
+      {t:'Eindbaas: Bou', n:['C2','D2','E2','F2','G2','A2','B2','C3','D3','E3','F3','G3','A3','B3','C4','D4'], boss:true, len:16, b:'Daar is Bou zelf! Elke goede noot is een treffer. Raak hem 16 keer en Bountyland is gered!'},
+    ]},
+};
+const SHOP = [
+  {id:'cap',    name:'Bounty-petje', em:'🧢', price:15},
+  {id:'glasses',name:'Zonnebril',    em:'🕶️', price:25},
+  {id:'shirt',  name:'Bounty-shirt', em:'👕', price:35},
+  {id:'cape',   name:'Supercape',    em:'🦸', price:50},
+  {id:'crown',  name:'Gouden kroon', em:'👑', price:80},
+  {id:'plush',  name:'Bounty-knuffel',em:'🧸', price:120},
+];
+const DEFAULT_SETTINGS = {letters:'help', hName:'H', strict:false, hintDelay:7, sens:3, tap:false, sound:true};
+
+/* =========================================================
+   Opslag (alleen in deze browser)
+   ========================================================= */
+const KEY = 'bounty-noten-v1';
+let S = load();
+function blankProfile(){ return {bones:0, owned:{}, wear:{}, stars:{}, unlocked:1, mastery:{}, settings:{...DEFAULT_SETTINGS}}; }
+function load(){
+  let s = null;
+  try { s = JSON.parse(localStorage.getItem(KEY)); } catch(e){}
+  if(!s || !s.p) s = {p:{}};
+  for(const pr of PROFILES){
+    s.p[pr.id] = Object.assign(blankProfile(), s.p[pr.id]||{});
+    s.p[pr.id].settings = Object.assign({...DEFAULT_SETTINGS}, s.p[pr.id].settings||{});
+  }
+  return s;
+}
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} }
+
+/* =========================================================
+   Noten
+   ========================================================= */
+const LETTERS = ['C','D','E','F','G','A','B'];
+const PC_OF = {C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+function parse(n){ return 12*(parseInt(n.slice(1),10)+1) + PC_OF[n[0]]; }
+function info(midi){
+  const pc = ((midi%12)+12)%12, oct = Math.floor(midi/12)-1;
+  const map = {0:0,2:1,4:2,5:3,7:4,9:5,11:6};
+  let li = map[pc], acc = '';
+  if(li === undefined){ li = map[pc-1]; acc = '#'; }
+  return {li, oct, step: oct*7+li, acc, pc};
+}
+function letterName(midi, hName){
+  const i = info(midi); let L = LETTERS[i.li];
+  if(L==='B') L = hName==='B' ? 'B' : 'H';
+  return L + (i.acc ? 'is' : '');
+}
+const NOTE_NAMES_NL = {C:'C',D:'D',E:'E',F:'F',G:'G',A:'A',B:'B',H:'H'};
+
+/* =========================================================
+   Tekeningen: Bounty, monsters, bot
+   ========================================================= */
+const INK = '#16130f';
+function boneSVG(){ return `<svg class="bone-ico" viewBox="0 0 64 32" aria-hidden="true"><path d="M14 9a7 7 0 1 0-4 12 7 7 0 1 0 4 4h36a7 7 0 1 0 4-4 7 7 0 1 0-4-12z" fill="#fff8e6" stroke="${INK}" stroke-width="3.5" stroke-linejoin="round"/></svg>`; }
+
+function bountySVG(wear, opts){
+  wear = wear || {}; opts = opts || {};
+  const body = wear.shirt ? '#e4483b' : '#fff';
+  const parts = [];
+  if(wear.plush){
+    parts.push(`<g transform="translate(-70,92) scale(.38)">${bountyCore('#fff',{},true)}</g>`);
+  }
+  if(wear.cape) parts.push(`<path d="M86 50 L150 58 Q176 92 160 128 L92 120 Q80 90 86 50Z" fill="#e4483b" stroke="${INK}" stroke-width="5" stroke-linejoin="round"/>`);
+  parts.push(bountyCore(body, wear));
+  return `<svg viewBox="-80 -10 300 175" xmlns="http://www.w3.org/2000/svg">${parts.join('')}</svg>`;
+}
+function bountyCore(body, wear, mini){
+  const s = `stroke="${INK}" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"`;
+  let g = '';
+  // staart (lang, omhoog) - zoals op Julians tekening
+  g += `<path d="M160 60 L198 2 L208 8 L172 66Z" fill="#fff" ${s}/>`;
+  // poten
+  for(const [x,w] of [[60,24],[96,22],[126,22],[156,22]]) g += `<rect x="${x}" y="98" width="${w}" height="54" fill="#fff" ${s}/>`;
+  // lijf
+  g += `<path d="M72 42 L168 54 L176 64 L178 104 L70 104Z" fill="${body}" ${s}/>`;
+  if(wear.shirt && !mini) g += `<text x="122" y="92" text-anchor="middle" font-family="Permanent Marker,cursive" font-size="30" fill="#fff" stroke="${INK}" stroke-width="1.5">B</text>`;
+  // hoofd
+  g += `<circle cx="50" cy="72" r="40" fill="#fff" ${s}/>`;
+  // ogen en mond
+  g += `<path d="M38 56 L31 74" stroke="${INK}" stroke-width="8" stroke-linecap="round"/><path d="M62 54 L66 72" stroke="${INK}" stroke-width="8" stroke-linecap="round"/>`;
+  g += `<path d="M28 100 L44 85 L59 100" fill="none" stroke="${INK}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>`;
+  if(wear.glasses) g += `<g fill="#16130f" stroke="${INK}" stroke-width="3"><rect x="20" y="52" width="24" height="18" rx="6"/><rect x="52" y="52" width="24" height="18" rx="6"/><path d="M44 60 H52" fill="none"/></g>`;
+  if(wear.cap) g += `<path d="M18 46 Q50 4 84 40Z" fill="#2f7de1" ${s}/><path d="M80 40 L108 46" stroke="${INK}" stroke-width="7" stroke-linecap="round"/><text x="50" y="38" text-anchor="middle" font-family="Permanent Marker,cursive" font-size="18" fill="#fff">B</text>`;
+  if(wear.crown) g += `<path d="M22 ${wear.cap?22:36} L28 ${wear.cap?-6:8} L40 ${wear.cap?10:22} L50 ${wear.cap?-10:4} L60 ${wear.cap?10:22} L72 ${wear.cap?-6:8} L78 ${wear.cap?22:36}Z" fill="#f5b931" ${s}/>`;
+  return g;
+}
+
+function blobPath(cx, cy, rx, ry, spikes, depth, seed){
+  let r = seed||7; const rnd = () => (r = (r*9301+49297)%233280)/233280;
+  let d = '';
+  for(let i=0;i<spikes*2;i++){
+    const a = (i/(spikes*2))*Math.PI*2 - Math.PI/2;
+    const k = i%2===0 ? 1 : 1-depth*(0.8+0.4*rnd());
+    const x = cx + Math.cos(a)*rx*k, y = cy + Math.sin(a)*ry*k;
+    d += (i?'L':'M') + x.toFixed(1)+' '+y.toFixed(1);
+  }
+  return d+'Z';
+}
+const MONSTER_COLORS = ['#8c5cd6','#3bb35a','#f08a24','#e4483b','#2bb3b8','#d64f9b'];
+function monsterSVG(i){
+  const c = MONSTER_COLORS[i % MONSTER_COLORS.length];
+  const s = `stroke="${INK}" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"`;
+  return `<svg viewBox="0 0 170 170" xmlns="http://www.w3.org/2000/svg">
+    <path d="M58 140 v20 h18 M104 140 v20 h18" fill="none" ${s}/>
+    <path d="${blobPath(85,86,70,62,13,.22,i*13+5)}" fill="${c}" ${s}/>
+    <ellipse cx="62" cy="70" rx="15" ry="18" fill="#fff" ${s}/><ellipse cx="108" cy="70" rx="15" ry="18" fill="#fff" ${s}/>
+    <circle cx="58" cy="74" r="6" fill="${INK}"/><circle cx="104" cy="74" r="6" fill="${INK}"/>
+    <path d="M44 106 L56 96 L66 110 L78 96 L90 110 L102 96 L114 110 L126 98 Q86 136 44 106Z" fill="#fff" ${s}/>
+  </svg>`;
+}
+function bouSVG(){
+  const s = `stroke="${INK}" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"`;
+  return `<svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+    <path d="M70 30 L56 -6 L92 22 M170 30 L184 -6 L148 22" fill="#f5b931" ${s}/>
+    <path d="${blobPath(120,128,104,98,17,.2,99)}" fill="#5b2a86" ${s}/>
+    <path d="M60 86 L104 104 M180 86 L136 104" ${s}/>
+    <ellipse cx="88" cy="114" rx="16" ry="14" fill="#ffe14d" ${s}/><ellipse cx="152" cy="114" rx="16" ry="14" fill="#ffe14d" ${s}/>
+    <circle cx="90" cy="117" r="6" fill="${INK}"/><circle cx="150" cy="117" r="6" fill="${INK}"/>
+    <path d="M52 160 L70 146 L84 166 L100 146 L116 166 L132 146 L148 166 L164 146 L180 164 L190 156 Q120 214 52 160Z" fill="#fff" ${s}/>
+  </svg>`;
+}
+
+/* =========================================================
+   Notenbalk
+   ========================================================= */
+const SP = 18;            // afstand tussen lijnen
+const NOTE_X = 380;
+function staffLayout(clef){
+  if(clef==='grand') return {h:420, staves:[{clef:'treble', top:96, bottom:96+4*SP, bstep:30},{clef:'bass', top:96+4*SP+96, bottom:96+8*SP+96, bstep:18}]};
+  return {h:300, staves:[{clef:'bass', top:96, bottom:96+4*SP, bstep:18}]};
+}
+function staffFor(layout, midi){
+  if(layout.staves.length===1) return layout.staves[0];
+  return midi >= 60 ? layout.staves[0] : layout.staves[1];
+}
+function noteY(st, step){ return st.bottom - (step - st.bstep)*SP/2; }
+function ledgerLines(st, step, x, w){
+  let out = '';
+  const top = st.bstep + 8;
+  if(step <= st.bstep-2){ for(let l = st.bstep-2; l >= step; l -= 2) out += `<line x1="${x-w}" x2="${x+w}" y1="${noteY(st,l)}" y2="${noteY(st,l)}" stroke="${INK}" stroke-width="3"/>`; }
+  if(step >= top+2){ for(let l = top+2; l <= step; l += 2) out += `<line x1="${x-w}" x2="${x+w}" y1="${noteY(st,l)}" y2="${noteY(st,l)}" stroke="${INK}" stroke-width="3"/>`; }
+  return out;
+}
+function wholeNote(x, y, color, op){
+  return `<g opacity="${op||1}"><ellipse cx="${x}" cy="${y}" rx="15.5" ry="11" fill="${color}" transform="rotate(-18 ${x} ${y})"/>
+    <ellipse cx="${x}" cy="${y}" rx="5.5" ry="8.6" fill="#fffdf6" transform="rotate(-50 ${x} ${y})"/></g>`;
+}
+function renderStaff(opts){
+  const prof = cur(), set = prof.settings;
+  const layout = staffLayout(INSTR[curP().instr].clef);
+  const svg = document.getElementById('staff');
+  svg.setAttribute('viewBox', `0 0 640 ${layout.h}`);
+  let g = '';
+  for(const st of layout.staves){
+    for(let i=0;i<5;i++){ const y = st.top + i*SP; g += `<line x1="40" x2="610" y1="${y}" y2="${y}" stroke="${INK}" stroke-width="2.6"/>`; }
+    if(st.clef==='treble') g += `<text x="52" y="${st.bottom}" font-family="Noto Music" font-size="${SP*4.1}" fill="${INK}">\u{1D11E}</text>`;
+    else g += `<text x="54" y="${st.bottom}" font-family="Noto Music" font-size="${SP*4.1}" fill="${INK}">\u{1D122}</text>`;
+  }
+  g += `<line x1="40" x2="40" y1="${layout.staves[0].top}" y2="${layout.staves[layout.staves.length-1].bottom}" stroke="${INK}" stroke-width="3"/>`;
+  g += `<line x1="610" x2="610" y1="${layout.staves[0].top}" y2="${layout.staves[0].bottom}" stroke="${INK}" stroke-width="2.6"/>`;
+  if(layout.staves.length>1){
+    const st2 = layout.staves[1];
+    g += `<line x1="610" x2="610" y1="${st2.top}" y2="${st2.bottom}" stroke="${INK}" stroke-width="2.6"/>`;
+    const t = layout.staves[0].top, b = st2.bottom, m = (t+b)/2;
+    g += `<path d="M30 ${t} C14 ${t+20} 30 ${m-30} 18 ${m} C30 ${m+30} 14 ${b-20} 30 ${b}" fill="none" stroke="${INK}" stroke-width="5" stroke-linecap="round"/>`;
+  }
+  if(opts && opts.target != null){
+    const st = staffFor(layout, opts.target), inf = info(opts.target), y = noteY(st, inf.step);
+    g += ledgerLines(st, inf.step, NOTE_X, 30);
+    g += `<g class="tnote">${wholeNote(NOTE_X, y, opts.flash || INK)}</g>`;
+    if(opts.showLetter){
+      const L = letterName(opts.target, set.hName);
+      g += `<g><rect x="${NOTE_X+40}" y="${y-24}" width="54" height="48" rx="12" fill="#f5b931" stroke="${INK}" stroke-width="3.5"/>
+        <text x="${NOTE_X+67}" y="${y+12}" text-anchor="middle" font-family="Permanent Marker,cursive" font-size="34" fill="${INK}">${L}</text></g>`;
+    }
+  }
+  if(opts && opts.ghost != null){
+    const st = staffFor(layout, opts.ghost), inf = info(opts.ghost), y = noteY(st, inf.step);
+    if(Math.abs(inf.step - st.bstep - 4) <= 14){
+      const gx = NOTE_X + 140;
+      g += `<g opacity=".75">${ledgerLines(st, inf.step, gx, 26).replaceAll(INK,'#b0453b')}</g>`;
+      g += wholeNote(gx, y, '#e4483b', .8);
+      g += `<text x="${gx}" y="${st===layout.staves[0] && layout.staves.length>1 ? st.top-30 : st.top-30}" text-anchor="middle" font-family="Baloo 2,sans-serif" font-weight="800" font-size="20" fill="#b0453b">jij speelde${inf.acc?' (tussen-noot)':''}</text>`;
+    }
+  }
+  svg.innerHTML = g;
+}
+
+/* =========================================================
+   Greep-tekeningen
+   ========================================================= */
+const CELLO_STRINGS = [{n:'C',open:36},{n:'G',open:43},{n:'D',open:50},{n:'A',open:57}];
+const FINGER_OF = {0:0,2:1,3:2,4:3,5:4};
+function celloPos(midi){
+  for(let i=CELLO_STRINGS.length-1;i>=0;i--){
+    const d = midi - CELLO_STRINGS[i].open;
+    if(d>=0 && d<=5 && FINGER_OF[d]!==undefined) return {si:i, string:CELLO_STRINGS[i].n, semis:d, finger:FINGER_OF[d]};
+  }
+  return null;
+}
+function celloDiagram(target, showName){
+  const xs = [70,140,210,280], nutY = 40, pos = {2:150,3:205,4:255,5:305};
+  const tp = target != null ? celloPos(target) : null;
+  let g = `<svg viewBox="0 0 350 420" xmlns="http://www.w3.org/2000/svg">`;
+  g += `<path d="M40 40 L310 40 L300 400 L50 400Z" fill="#3a2a1e" stroke="${INK}" stroke-width="4"/>`;
+  g += `<rect x="34" y="28" width="282" height="16" rx="4" fill="#efe3c8" stroke="${INK}" stroke-width="3"/>`;
+  // tapes (veel beginners hebben stickers op de toets)
+  for(const [semi, f] of [[2,1],[4,3],[5,4]]){
+    g += `<line x1="46" x2="304" y1="${pos[semi]}" y2="${pos[semi]}" stroke="#f5edd8" stroke-width="3" stroke-dasharray="7 6" opacity=".55"/>`;
+    g += `<text x="22" y="${pos[semi]+7}" text-anchor="middle" font-family="Baloo 2,sans-serif" font-weight="800" font-size="20" fill="${INK}">${f}</text>`;
+  }
+  g += `<text x="22" y="${pos[3]+7}" text-anchor="middle" font-family="Baloo 2,sans-serif" font-weight="800" font-size="16" fill="${INK}" opacity=".6">2</text>`;
+  CELLO_STRINGS.forEach((s,i)=>{
+    const on = tp && tp.si===i;
+    g += `<line x1="${xs[i]}" x2="${xs[i]}" y1="44" y2="400" stroke="${on?'#f5b931':'#d9d2c3'}" stroke-width="${on? 9 : 3+ (3-i)*1.3}"/>`;
+    g += `<text x="${xs[i]}" y="22" text-anchor="middle" font-family="Permanent Marker,cursive" font-size="22" fill="${on?'#e4483b':INK}">${s.n}</text>`;
+    // tikvakken
+    g += `<rect class="tapz" data-midi="${s.open}" x="${xs[i]-30}" y="44" width="60" height="70" fill="transparent"/>`;
+    for(const semi of [2,3,4,5]) g += `<rect class="tapz" data-midi="${s.open+semi}" x="${xs[i]-30}" y="${pos[semi]-24}" width="60" height="48" fill="transparent"/>`;
+  });
+  if(tp){
+    const x = xs[tp.si];
+    if(tp.finger===0){
+      g += `<circle cx="${x}" cy="80" r="24" fill="#fff" stroke="#e4483b" stroke-width="5"/><text x="${x}" y="90" text-anchor="middle" font-family="Permanent Marker,cursive" font-size="28" fill="#e4483b">0</text>`;
+      g += `<path d="M${x-40} 360 Q${x} 330 ${x+40} 360" fill="none" stroke="#f5b931" stroke-width="6" stroke-linecap="round"/><text x="${x}" y="392" text-anchor="middle" font-family="Baloo 2,sans-serif" font-weight="800" font-size="18" fill="#fff">strijk!</text>`;
+    } else {
+      const y = pos[tp.semis];
+      g += `<circle cx="${x}" cy="${y}" r="24" fill="#e4483b" stroke="#fff" stroke-width="4"/><text x="${x}" y="${y+10}" text-anchor="middle" font-family="Permanent Marker,cursive" font-size="28" fill="#fff">${tp.finger}</text>`;
+    }
+  }
+  return g + `</svg>`;
+}
+function celloHint(midi, set, showName){
+  const p = celloPos(midi); if(!p) return '';
+  const name = showName ? ` <span class="letter-badge">${letterName(midi,set.hName)}</span>` : '';
+  if(p.finger===0) return `Lege <b>${p.string}</b>-snaar.${name}<br>Niets indrukken, alleen strijken.`;
+  return `<b>${p.string}</b>-snaar, vinger <b>${p.finger}</b>.${name}<br>Druk met vinger ${p.finger} op de ${p.string}-snaar.`;
+}
+
+function harpStrings(){ const a = parse(INSTR.harp.range[0]), b = parse(INSTR.harp.range[1]); const out=[]; for(let m=a;m<=b;m++) if(info(m).acc==='') out.push(m); return out; }
+function harpDiagram(target){
+  const strs = harpStrings(), n = strs.length, W = 360, H = 420, x0 = 26, dx = (W-2*x0)/(n-1);
+  let g = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  // harpvorm: lange snaren links (laag), korte rechts (hoog)
+  g += `<path d="M14 400 L346 400 L346 ${400-120} Q200 40 14 20Z" fill="#f7e7c4" stroke="${INK}" stroke-width="4" stroke-linejoin="round"/>`;
+  strs.forEach((m,i)=>{
+    const x = x0 + i*dx, inf = info(m), L = LETTERS[inf.li];
+    const topY = 30 + (i/(n-1))*250 + Math.pow(i/(n-1),2)*40;
+    const col = L==='C' ? '#e4483b' : L==='F' ? '#1d2f6f' : '#9b8a6a';
+    const on = m===target;
+    g += `<line x1="${x}" x2="${x}" y1="${topY}" y2="392" stroke="${on?'#f5b931':col}" stroke-width="${on?8:(L==='C'||L==='F'?4.5:3)}" stroke-linecap="round"/>`;
+    if(on) g += `<line x1="${x}" x2="${x}" y1="${topY}" y2="392" stroke="${INK}" stroke-width="1.5" stroke-linecap="round" opacity=".6"/>`;
+    g += `<rect class="tapz" data-midi="${m}" x="${x-dx/2}" y="${topY}" width="${dx}" height="${392-topY}" fill="transparent"/>`;
+    if(m===60) g += `<text x="${x}" y="414" text-anchor="middle" font-family="Baloo 2,sans-serif" font-weight="800" font-size="12" fill="${INK}">midden</text>`;
+  });
+  if(target != null){
+    const i = strs.indexOf(target);
+    if(i>=0){ const x = x0 + i*dx;
+      g += `<path d="M${x} 370 l-14 -26 h28z" fill="#f5b931" stroke="${INK}" stroke-width="3" transform="translate(0,${-0})"/>`;
+      g += `<circle cx="${x}" cy="330" r="16" fill="#f5b931" stroke="${INK}" stroke-width="3"/><text x="${x}" y="337" text-anchor="middle" font-family="Baloo 2,sans-serif" font-weight="800" font-size="16">${target>=60?'R':'L'}</text>`; }
+  }
+  g += `<text x="24" y="${H-2}" font-family="Baloo 2,sans-serif" font-weight="800" font-size="13" fill="${INK}">← laag</text><text x="${W-22}" y="${H-2}" text-anchor="end" font-family="Baloo 2,sans-serif" font-weight="800" font-size="13" fill="${INK}">hoog →</text>`;
+  return g + `</svg>`;
+}
+function harpHint(midi, set, showName){
+  const inf = info(midi), L = LETTERS[inf.li];
+  const hand = midi >= 60 ? 'Rechterhand' : 'Linkerhand';
+  const name = showName ? ` <span class="letter-badge">${letterName(midi,set.hName)}</span>` : '';
+  let where;
+  if(L==='C') where = midi===60 ? 'de rode C in het midden' : 'een <b style="color:#e4483b">rode</b> snaar (C)';
+  else if(L==='F') where = 'een <b style="color:#1d2f6f">donkere</b> snaar (F)';
+  else {
+    // dichtstbijzijnde gekleurde snaar zoeken
+    const strs = harpStrings(), i = strs.indexOf(midi);
+    let best = null;
+    for(let d=1; d<4 && !best; d++){
+      for(const s of [-1,1]){
+        const j = i + s*d; if(j<0||j>=strs.length) continue;
+        const LL = LETTERS[info(strs[j]).li];
+        if(LL==='C'||LL==='F'){ best = {d, s, LL}; break; }
+      }
+    }
+    if(best){
+      const kleur = best.LL==='C' ? '<b style="color:#e4483b">rode</b> C' : '<b style="color:#1d2f6f">donkere</b> F';
+      where = `${best.d===1?'1 snaar':best.d+' snaren'} ${best.s<0?'boven':'onder'} de ${kleur}`;
+    } else where = 'de gele snaar';
+  }
+  return `<b>${hand}</b>.${name}<br>Het is ${where}.`;
+}
+
+/* =========================================================
+   Geluid: microfoon, effecten, voorbeeldtoon
+   ========================================================= */
+const AUDIO = {ctx:null, an:null, stream:null, buf:null, work:null, nsdf:null, on:false, muteUntil:0, floor:0.004, level:0, stab:null};
+async function startMic(){
+  try{
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('geen microfoon-ondersteuning');
+    ensureCtx();
+    const stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false, noiseSuppression:false, autoGainControl:false}});
+    const src = AUDIO.ctx.createMediaStreamSource(stream);
+    const an = AUDIO.ctx.createAnalyser(); an.fftSize = 2048; an.smoothingTimeConstant = 0;
+    src.connect(an);
+    Object.assign(AUDIO, {stream, an, buf:new Float32Array(an.fftSize), work:new Float32Array(an.fftSize), nsdf:new Float32Array(1200), on:true, stab:new BNPitch.Stabilizer(3)});
+    // ruisvloer meten
+    let samples = [], t0 = performance.now();
+    await new Promise(res => { (function m(){ an.getFloatTimeDomainData(AUDIO.buf); let r=0; for(const v of AUDIO.buf) r+=v*v; samples.push(Math.sqrt(r/AUDIO.buf.length)); if(performance.now()-t0<700) requestAnimationFrame(m); else res(); })(); });
+    samples.sort((a,b)=>a-b); AUDIO.floor = Math.min(0.006, samples[Math.floor(samples.length*0.2)] || 0.003); // niet te hoog als er al gespeeld wordt
+    requestAnimationFrame(listenLoop);
+    return true;
+  } catch(e){ console.warn('Microfoon:', e); AUDIO.on = false; return false; }
+}
+function ensureCtx(){ if(!AUDIO.ctx){ const C = window.AudioContext || window.webkitAudioContext; AUDIO.ctx = new C(); } if(AUDIO.ctx.state==='suspended') AUDIO.ctx.resume(); return AUDIO.ctx; }
+let lastAnalyse = 0;
+function listenLoop(t){
+  if(!AUDIO.on) return;
+  requestAnimationFrame(listenLoop);
+  if(t - lastAnalyse < 30) return;   // ongeveer 33 keer per seconde
+  lastAnalyse = t;
+  AUDIO.an.getFloatTimeDomainData(AUDIO.buf);
+  const set = cur() ? cur().settings : DEFAULT_SETTINGS;
+  const gate = Math.max(0.004, AUDIO.floor * (6 - set.sens) * 1.1);
+  const det = INSTR[curP() ? curP().instr : 'cello'].det;
+  const d = BNPitch.detectPitch(AUDIO.buf, AUDIO.ctx.sampleRate, {fmin:det.fmin, fmax:det.fmax, k:det.k, gate, work:AUDIO.work, nsdf:AUDIO.nsdf});
+  AUDIO.level = Math.min(1, d.rms / (gate*6));
+  const bar = document.getElementById('micBar'); if(bar) bar.style.width = (AUDIO.level*100).toFixed(0)+'%';
+  if(performance.now() < AUDIO.muteUntil){ AUDIO.stab.reset(); return; }
+  const midi = d.freq && d.clarity > det.clarity ? Math.round(BNPitch.freqToMidi(d.freq)) : null;
+  const rep = AUDIO.stab.push(midi);
+  if(rep != null) onHeard(rep, 'mic');
+}
+function sfxOk(){ return cur() && cur().settings.sound; }
+function mute(ms){ AUDIO.muteUntil = Math.max(AUDIO.muteUntil, performance.now() + ms); }
+function bark(){
+  if(!sfxOk()) return; const ctx = ensureCtx(); mute(700);
+  for(const [delay, f0] of [[0, 900],[0.2, 780]]){
+    const len = 0.16, buf = ctx.createBuffer(1, ctx.sampleRate*len, ctx.sampleRate), d = buf.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i] = (Math.random()*2-1);
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const bp = ctx.createBiquadFilter(); bp.type='bandpass'; bp.Q.value = 4;
+    const t = ctx.currentTime + delay;
+    bp.frequency.setValueAtTime(f0, t); bp.frequency.exponentialRampToValueAtTime(f0*0.45, t+len);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.5,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+len);
+    src.connect(bp).connect(g).connect(ctx.destination); src.start(t);
+  }
+}
+function boop(){ // zachte "oei" bij een verkeerde noot - ruis, geen toon
+  if(!sfxOk()) return; const ctx = ensureCtx(); mute(400);
+  const len=.12, buf = ctx.createBuffer(1, ctx.sampleRate*len, ctx.sampleRate), d = buf.getChannelData(0);
+  for(let i=0;i<d.length;i++) d[i] = (Math.random()*2-1)*(1-i/d.length);
+  const src = ctx.createBufferSource(); src.buffer = buf; const lp = ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=500;
+  const g = ctx.createGain(); g.gain.value = .25; src.connect(lp).connect(g).connect(ctx.destination); src.start();
+}
+function playTone(midi){
+  const ctx = ensureCtx(), f = BNPitch.midiToFreq(midi), t = ctx.currentTime + 0.02;
+  const instr = curP().instr, dur = instr==='harp' ? 1.8 : 1.6;
+  mute((dur+0.6)*1000);
+  const out = ctx.createGain(); out.connect(ctx.destination);
+  if(instr==='harp'){
+    [[1,.6],[2,.35],[3,.12],[4,.06]].forEach(([k,a])=>{ const o=ctx.createOscillator(); o.frequency.value=f*k; const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(a*.5,t+.008); g.gain.exponentialRampToValueAtTime(0.0001,t+dur/(k*.7)); o.connect(g).connect(out); o.start(t); o.stop(t+dur); });
+  } else {
+    const o = ctx.createOscillator(); o.type='sawtooth'; o.frequency.value=f;
+    const lfo = ctx.createOscillator(); lfo.frequency.value=5.2; const lg = ctx.createGain(); lg.gain.value=f*0.004; lfo.connect(lg).connect(o.frequency);
+    const lp = ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value = Math.min(2400, f*7); lp.Q.value=.7;
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(.28,t+.12); g.gain.setValueAtTime(.28,t+dur-.3); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(lp).connect(g).connect(out); o.start(t); lfo.start(t); o.stop(t+dur); lfo.stop(t+dur);
+  }
+}
+
+/* =========================================================
+   Schermen
+   ========================================================= */
+let curId = null;
+function curP(){ return PROFILES.find(p=>p.id===curId); }
+function cur(){ return curId ? S.p[curId] : null; }
+const $ = id => document.getElementById(id);
+function show(id){ for(const s of ['title','mapScreen','play']) $(s).hidden = s!==id; }
+function toast(msg){ const t = document.createElement('div'); t.className='toast'; t.textContent = msg; document.body.append(t); setTimeout(()=>t.remove(), 2600); }
+
+function renderTitle(){
+  $('playerBtns').innerHTML = PROFILES.map(p => `
+    <button class="player" data-id="${p.id}" style="background:${p.id==='lauren'?'#ffe3dc':'#dbe9ff'}">
+      <span class="ico">${p.instr==='harp'?harpIcon():celloIcon()}</span>
+      <span><b>${p.name}</b><span>${INSTR[p.instr].label} · ${S.p[p.id].bones} botten</span></span>
+    </button>`).join('');
+  $('playerBtns').querySelectorAll('.player').forEach(b => b.onclick = () => { curId = b.dataset.id; ensureCtx(); openMap(); });
+  show('title');
+}
+function harpIcon(){ return `<svg viewBox="0 0 60 60" width="44" height="44"><path d="M10 54 L50 54 L50 40 Q34 8 10 6Z" fill="#f5b931" stroke="${INK}" stroke-width="3.5" stroke-linejoin="round"/>${[18,24,30,36,42].map((x,i)=>`<line x1="${x}" x2="${x}" y1="${12+i*6}" y2="52" stroke="${i===1?'#e4483b':INK}" stroke-width="2"/>`).join('')}</svg>`; }
+function celloIcon(){ return `<svg viewBox="0 0 60 60" width="44" height="44"><path d="M30 4 v18" stroke="${INK}" stroke-width="5" stroke-linecap="round"/><path d="M30 20 C14 20 18 32 22 34 C12 38 14 56 30 56 C46 56 48 38 38 34 C42 32 46 20 30 20Z" fill="#c8732e" stroke="${INK}" stroke-width="3.5"/><path d="M26 36 h8 M27 44 h6" stroke="${INK}" stroke-width="2.5"/></svg>`; }
+
+function openMap(){
+  const p = curP(), pr = cur(), ins = INSTR[p.instr], set = pr.settings;
+  $('mapTitle').textContent = `${p.name} · ${ins.label}`;
+  $('mapBones').innerHTML = boneSVG() + pr.bones;
+  $('mapStory').innerHTML = `${bountySVG(pr.wear)}<p>${ins.story}</p>`;
+  $('missionGrid').innerHTML = ins.missions.map((m,i) => {
+    const locked = i >= pr.unlocked, st = pr.stars[i]||0;
+    const notes = set.letters==='never' ? `${m.n.length} noten` : uniqLetters(m.n, set.hName);
+    return `<button class="mcard ${locked?'locked':''} ${m.boss?'boss':''}" data-i="${i}" ${locked?'aria-disabled="true"':''}>
+      <span class="num">${m.boss?'👾':i+1}</span><span class="t">${m.t}</span>
+      <span class="stars">${[1,2,3].map(k=> k<=st?'<i>★</i>':'★').join('')}</span>
+      <span class="notes">${notes}</span></button>`;
+  }).join('');
+  $('missionGrid').querySelectorAll('.mcard').forEach(b => b.onclick = () => { const i = +b.dataset.i; if(i < pr.unlocked) briefing(i); });
+  show('mapScreen');
+}
+function uniqLetters(ns, h){ const seen = []; for(const n of ns){ const L = letterName(parse(n), h); if(!seen.includes(L)) seen.push(L); } return seen.join(' '); }
+
+function modal(html){ const m = $('modal'); m.innerHTML = `<div class="panel">${html}</div>`; m.hidden = false; return m; }
+function closeModal(){ $('modal').hidden = true; $('modal').innerHTML=''; }
+
+async function needMic(){
+  const set = cur().settings;
+  if(set.tap || AUDIO.on) return true;
+  return new Promise(res => {
+    const p = curP();
+    const m = modal(`<p class="eyebrow">Even instellen</p><h2 class="mk" style="font-size:36px;margin:4px 0 10px">Bounty moet kunnen luisteren</h2>
+      <p style="font-size:18px">Zet de laptop dicht bij je ${p.instr==='harp'?'harp':'cello'}. Als de browser vraagt of hij de microfoon mag gebruiken, klik dan op <b>Toestaan</b>.</p>
+      <div class="row" style="margin-top:16px"><button class="btn green" id="mOk">🎤 Microfoon aan</button><button class="btn plain" id="mTap">Zonder instrument (tikken)</button></div>
+      <p id="mErr" style="color:#b0453b;margin-top:10px"></p>`);
+    m.querySelector('#mOk').onclick = async () => {
+      m.querySelector('#mOk').disabled = true; m.querySelector('#mOk').textContent = 'Even luisteren…';
+      const ok = await startMic();
+      if(ok){ closeModal(); res(true); }
+      else { m.querySelector('#mOk').disabled = false; m.querySelector('#mOk').textContent = '🎤 Opnieuw proberen'; m.querySelector('#mErr').textContent = 'De microfoon werkt niet. Kijk of de browser toestemming heeft (slotje naast het adres), of speel zonder instrument.'; }
+    };
+    m.querySelector('#mTap').onclick = () => { cur().settings.tap = true; save(); closeModal(); toast('Tik op de snaren in het greep-paneel'); res(true); };
+  });
+}
+
+function briefing(i){
+  const p = curP(), ins = INSTR[p.instr], m = ins.missions[i], pr = cur();
+  const newOnes = m.n.map(parse).filter(x => !(pr.mastery[x] && pr.mastery[x].seen >= 2));
+  const md = modal(`<p class="eyebrow">Missie ${m.boss?'eindbaas':i+1}</p><h2 class="mk" style="font-size:40px;margin:4px 0 10px">${m.t}</h2>
+    <p style="font-size:19px">${m.b}</p>
+    ${newOnes.length ? `<p style="margin-top:10px;font-size:17px">✨ Nieuwe noten: Bounty laat je eerst de greep zien.</p>`:''}
+    <div class="row" style="margin-top:18px"><button class="btn green" id="bGo">▶ Start!</button><button class="btn plain" id="bBack">Terug</button></div>`);
+  md.querySelector('#bGo').onclick = async () => { closeModal(); if(await needMic()) startGame(i); };
+  md.querySelector('#bBack').onclick = closeModal;
+}
+
+/* =========================================================
+   Het spel
+   ========================================================= */
+let G = null;
+function startGame(mi){
+  const p = curP(), ins = INSTR[p.instr], pr = cur();
+  const free = mi === 'free';
+  let notes, len, boss = false, title;
+  if(free){
+    notes = []; for(let i=0;i<pr.unlocked && i<ins.missions.length;i++) for(const n of ins.missions[i].n) if(!notes.includes(n)) notes.push(n);
+    len = Infinity; title = 'Vrij oefenen';
+  } else { const m = ins.missions[mi]; notes = m.n.slice(); len = m.len || 10; boss = !!m.boss; title = m.t; }
+  G = {mi, free, notes: notes.map(parse), len, boss, idx:0, target:null, prevTarget:null, prevAt:0,
+       helps:0, wrongs:0, bones:0, helpShown:false, intro:false, startT:0, lastWrong:0, queue:[], timer:null, busy:false, hp: boss ? len : 0, monsterN:0};
+  // eerst elke noot een keer, dan op gevoel
+  G.queue = shuffle(G.notes.slice());
+  show('play');
+  $('hudWho').textContent = p.name; $('hudWho').style.background = p.id==='lauren' ? '#ffe3dc' : '#dbe9ff';
+  $('hudTitle').textContent = title;
+  $('hudMic').classList.toggle('off', !AUDIO.on);
+  $('micLabel').textContent = pr.settings.tap ? '👆' : '🎤';
+  updateBones();
+  $('bountyActor').innerHTML = bountySVG(pr.wear);
+  const mon = $('monsterActor'); mon.className = 'actor' + (boss?' boss':''); mon.style.transition='none'; mon.style.left='105%';
+  document.querySelectorAll('.hpbar').forEach(e=>e.remove());
+  if(boss){
+    mon.innerHTML = `<div class="bob" style="height:100%">${bouSVG()}</div>`; mon.style.left = '62%';
+    const hp = document.createElement('div'); hp.className='hpbar'; hp.innerHTML = `<i style="width:100%"></i><b>Bou</b>`; $('scene').append(hp);
+  }
+  renderDots();
+  setTimeout(nextNote, 500);
+}
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function pickNote(){
+  let q = G.queue.filter(m => m%12 !== (G.target!=null ? G.target%12 : -1));
+  if(G.queue.length && q.length){ const m = q[0]; G.queue.splice(G.queue.indexOf(m),1); return m; }
+  const pr = cur();
+  const cands = G.notes.filter(m => G.notes.length < 2 || m%12 !== (G.target!=null ? G.target%12 : -1));
+  const w = cands.map(m => { const ms = pr.mastery[m]; const sc = ms ? ms.score : 0; return 1 + 2*(1-sc) + (!ms || ms.seen<2 ? 2 : 0); });
+  let r = Math.random()*w.reduce((a,b)=>a+b,0);
+  for(let i=0;i<cands.length;i++){ r -= w[i]; if(r<=0) return cands[i]; }
+  return cands[cands.length-1];
+}
+function renderDots(){
+  if(G.free){ $('hudDots').innerHTML = `<span class="bone-pill" style="font-size:18px">🎵 ${G.idx}</span>`; return; }
+  const n = Math.min(G.len, 16);
+  $('hudDots').innerHTML = Array.from({length:n},(_,i)=>`<i class="${i<G.idx?'done':i===G.idx?'now':''}"></i>`).join('');
+}
+function updateBones(){ $('hudBones').innerHTML = boneSVG() + cur().bones; }
+
+function nextNote(){
+  if(!G) return;
+  if(!G.free && G.idx >= G.len){ return finishMission(); }
+  G.prevTarget = G.target; G.prevAt = performance.now();
+  G.target = pickNote();
+  const pr = cur(), ms = pr.mastery[G.target];
+  G.intro = !ms || ms.seen < 2;
+  G.helpShown = false; G.usedHelp = false; G.wrongHere = 0; G.startT = performance.now(); G.busy = false;
+  if(!pr.mastery[G.target]) pr.mastery[G.target] = {seen:0, score:0};
+  pr.mastery[G.target].seen++;
+  drawNote();
+  setHelp(G.intro ? 'intro' : false);
+  renderDots();
+  if(!G.boss) spawnMonster();
+  clearInterval(G.timer);
+  G.timer = setInterval(tick, 250);
+}
+function drawNote(extra){
+  const set = cur().settings;
+  const showLetter = set.letters==='always' || (set.letters==='help' && G.helpShown);
+  renderStaff(Object.assign({target:G.target, showLetter}, extra||{}));
+  $('staffTag').innerHTML = G.intro ? `<span class="tag new">✨ Nieuwe noot!</span>` : '';
+}
+function tick(){
+  if(!G || G.busy) return;
+  const set = cur().settings, el = (performance.now()-G.startT)/1000;
+  if(!G.helpShown && set.hintDelay>0 && el > set.hintDelay) setHelp('auto');
+}
+function spawnMonster(){
+  const mon = $('monsterActor');
+  G.monsterN++;
+  mon.innerHTML = `<div class="bob" style="height:100%">${monsterSVG(G.monsterN)}</div>`;
+  mon.style.transition = 'none'; mon.style.left = '105%'; mon.style.opacity = 1; mon.style.transform = '';
+  void mon.offsetWidth;
+  mon.style.transition = 'left 9s linear'; mon.style.left = '36%';
+}
+function setHelp(mode){
+  const p = curP(), set = cur().settings, help = $('help');
+  const on = !!mode;
+  if(on && !G.helpShown && (mode==='auto' || mode==='manual' || mode==='wrong')){ G.helps++; G.usedHelp = true; }
+  G.helpShown = on;
+  help.classList.toggle('collapsed', !on);
+  const showName = set.letters !== 'never';
+  if(on){
+    $('helpTitle').textContent = mode==='intro' ? 'Nieuwe noot' : 'Zo speel je hem';
+    $('helpHint').innerHTML = p.instr==='harp' ? harpHint(G.target, set, showName) : celloHint(G.target, set, showName);
+    $('diag').innerHTML = p.instr==='harp' ? harpDiagram(G.target) : celloDiagram(G.target);
+  } else {
+    $('helpTitle').textContent = 'Greep';
+    $('helpHint').innerHTML = set.tap ? 'Tik op de juiste plek op de ' + (p.instr==='harp'?'harp.':'cello.') : 'Kijk naar de noot op de balk en speel hem!';
+    $('diag').innerHTML = p.instr==='harp' ? harpDiagram(null) : celloDiagram(null);
+  }
+  $('helpSub').textContent = set.tap ? 'tikken' : '';
+  $('btnHelp').disabled = on;
+  drawNote();
+  bindTaps();
+}
+function bindTaps(){
+  if(!cur().settings.tap) return;
+  $('diag').querySelectorAll('.tapz').forEach(r => { r.style.cursor='pointer'; r.onclick = () => onHeard(+r.dataset.midi, 'tap'); });
+}
+
+function onHeard(midi, src){
+  if(!G || G.busy || G.target == null) return;
+  const set = cur().settings;
+  const pcOk = ((midi - G.target) % 12 + 12) % 12 === 0;
+  const ok = pcOk && (!set.strict || midi === G.target || src==='tap' && midi===G.target);
+  if(ok) return success();
+  // naklinkende vorige noot negeren
+  if(G.prevTarget!=null && (midi - G.prevTarget) % 12 === 0 && performance.now() - G.prevAt < 3000) return;
+  const now = performance.now();
+  if(now - G.lastWrong < 1200) return;
+  G.lastWrong = now; G.wrongs++; G.wrongHere++;
+  const ms = cur().mastery[G.target]; ms.score = Math.max(0, ms.score - 0.15);
+  boop();
+  say($('monsterActor'), ['Haha, mis!','Nee hoor!','Probeer nog eens!','Hihi!'][Math.floor(Math.random()*4)], 1300);
+  if(!G.helpShown) setHelp('wrong');
+  drawNote({ghost: midi});
+  clearTimeout(G.ghostT); G.ghostT = setTimeout(()=>{ if(G && !G.busy) drawNote(); }, 1800);
+  save();
+}
+function say(actor, text, ms){
+  const b = document.createElement('div'); b.className = 'bubble'; b.textContent = text;
+  const sc = $('scene').getBoundingClientRect(), r = actor.getBoundingClientRect();
+  b.style.left = Math.min(sc.width - 190, Math.max(4, r.left - sc.left + r.width*0.2)) + 'px'; b.style.top = Math.max(4, r.top - sc.top - 40) + 'px';
+  $('scene').append(b); setTimeout(()=>b.remove(), ms||1200);
+}
+function success(){
+  G.busy = true; clearInterval(G.timer);
+  const pr = cur(), ms = pr.mastery[G.target];
+  ms.score = Math.min(1, ms.score + (G.usedHelp ? 0.08 : 0.25));
+  const gain = G.usedHelp ? 1 : 2;
+  pr.bones += gain; G.bones += gain; G.idx++;
+  save();
+  drawNote({flash:'#3bb35a'});
+  bark();
+  const b = $('bountyActor'); b.animate([{transform:'scale(1)'},{transform:'scale(1.12) translateY(-6%)'},{transform:'scale(1)'}],{duration:420});
+  const w = document.createElement('div'); w.className='woef'; w.textContent='WOEF!';
+  const sc = $('scene').getBoundingClientRect(), br = b.getBoundingClientRect();
+  w.style.left = (br.right - sc.left - 20)+'px'; w.style.top = (br.top - sc.top)+'px'; $('scene').append(w);
+  w.animate([{transform:'scale(.4)',opacity:0},{transform:'scale(1.1)',opacity:1,offset:.3},{transform:'translateY(-30px)',opacity:0}],{duration:900}).onfinish=()=>w.remove();
+  const mon = $('monsterActor'), mr = mon.getBoundingClientRect();
+  for(let k=0;k<4;k++){
+    const n = document.createElement('div'); n.className='fly'; n.textContent = ['♪','♫','♪','♬'][k];
+    n.style.left = (br.right-20)+'px'; n.style.top = (br.top+br.height*0.3)+'px'; document.body.append(n);
+    const dx = (mr.left + mr.width*0.4) - (br.right-20), dy = (mr.top+mr.height*0.4) - (br.top+br.height*0.3);
+    n.animate([{transform:'translate(0,0)'},{transform:`translate(${dx}px,${dy - 40 + k*20}px) rotate(30deg)`}],{duration:450+k*60,easing:'ease-in'}).onfinish=()=>n.remove();
+  }
+  setTimeout(()=>{
+    if(G.boss){
+      G.hp--; const hb = document.querySelector('.hpbar i'); if(hb) hb.style.width = (100*G.hp/G.len)+'%';
+      mon.animate([{transform:'translateX(0)'},{transform:'translateX(18px) rotate(4deg)',filter:'brightness(2)'},{transform:'translateX(0)'}],{duration:300});
+      if(G.hp>0) say(mon, ['Au!','Oehh!','Grrr!','Nee!'][G.hp%4], 800);
+    } else {
+      const left = mon.getBoundingClientRect().left - sc.left;
+      mon.style.transition = 'none'; mon.style.left = (left/sc.width*100)+'%';
+      mon.animate([{transform:'scale(1)',opacity:1},{transform:'scale(1.3) rotate(20deg)',opacity:0}],{duration:380,fill:'forwards'});
+    }
+    flyBone(mr, gain);
+  }, 430);
+  setTimeout(()=>{ updateBones(); if(G) nextNote(); }, 1250);
+}
+function flyBone(fromRect, n){
+  const to = $('hudBones').getBoundingClientRect();
+  for(let k=0;k<n;k++){
+    const e = document.createElement('div'); e.className='fly'; e.innerHTML = boneSVG(); e.style.left = (fromRect.left+fromRect.width/2)+'px'; e.style.top = (fromRect.top+fromRect.height/3)+'px';
+    document.body.append(e);
+    e.animate([{transform:'translate(0,0) scale(1.2)'},{transform:`translate(${to.left-fromRect.left-fromRect.width/2}px,${to.top-fromRect.top-fromRect.height/3}px) scale(.8)`}],{duration:650+k*120,easing:'ease-in-out'}).onfinish=()=>e.remove();
+  }
+}
+function stopGame(){ if(G){ clearInterval(G.timer); clearTimeout(G.ghostT); } G = null; }
+function finishMission(){
+  clearInterval(G.timer);
+  const pr = cur(), ins = INSTR[curP().instr], mi = G.mi;
+  const bad = G.helps + G.wrongs;
+  const stars = bad <= 2 ? 3 : bad <= 5 ? 2 : 1;
+  const bonus = stars*2 + (G.boss ? 10 : 0);
+  pr.bones += bonus; pr.stars[mi] = Math.max(pr.stars[mi]||0, stars);
+  const first = pr.unlocked === mi+1 && mi+1 < ins.missions.length;
+  if(first) pr.unlocked = mi+2;
+  save();
+  const earned = G.bones + bonus;
+  const isBoss = G.boss;
+  if(isBoss){ const mon = $('monsterActor'); mon.animate([{transform:'scale(1) rotate(0)'},{transform:'scale(.2) rotate(540deg)',opacity:0}],{duration:900,fill:'forwards'}); }
+  stopGame();
+  setTimeout(()=>{
+    const m = modal(`<p class="eyebrow">${isBoss?'Bountyland is gered!':'Missie gelukt!'}</p>
+      <h2 class="mk" style="font-size:42px;margin:4px 0">${isBoss?'Bou is verslagen!':'Goed gedaan!'}</h2>
+      <div class="stars-big">${[1,2,3].map(k=>k<=stars?'<i>★</i>':'★').join('')}</div>
+      <p style="font-size:20px;text-align:center">Je verdiende ${earned} botten ${boneSVG()}</p>
+      ${stars<3?`<p style="text-align:center;margin-top:6px;color:var(--ink-soft)">Tip: zonder hulp en zonder missers krijg je 3 sterren.</p>`:''}
+      ${first?`<p style="text-align:center;margin-top:8px;font-size:18px">🔓 Een nieuwe missie is open!</p>`:''}
+      <div class="row" style="margin-top:16px;justify-content:center">
+        ${mi+1 < ins.missions.length && mi+1 < pr.unlocked ? `<button class="btn green" id="fNext">Volgende missie</button>`:''}
+        <button class="btn" id="fAgain">Nog een keer</button><button class="btn plain" id="fMap">Naar de kaart</button></div>`);
+    const nx = m.querySelector('#fNext'); if(nx) nx.onclick = () => { closeModal(); briefing(mi+1); };
+    m.querySelector('#fAgain').onclick = () => { closeModal(); startGame(mi); };
+    m.querySelector('#fMap').onclick = () => { closeModal(); openMap(); };
+  }, isBoss ? 900 : 300);
+}
+
+/* winkel */
+function openShop(){
+  const pr = cur();
+  const m = modal(`<div class="row" style="justify-content:space-between"><h2 class="mk" style="font-size:38px">Bounty Winkel</h2><span class="bone-pill">${boneSVG()}${pr.bones}</span></div>
+    <div style="display:flex;justify-content:center"><div style="width:260px">${bountySVG(pr.wear)}</div></div>
+    <div class="shop-grid">${SHOP.map(it => {
+      const own = pr.owned[it.id], wear = pr.wear[it.id];
+      return `<div class="item ${own?'owned':''}"><span class="em">${it.em}</span><span>${it.name}</span>
+        ${own ? `<button class="btn small ${wear?'plain':'green'}" data-wear="${it.id}">${wear?'Afdoen':'Aandoen'}</button>`
+              : `<button class="btn small" data-buy="${it.id}" ${pr.bones<it.price?'disabled':''}>${it.price} botten</button>`}</div>`;
+    }).join('')}</div>
+    <div class="row" style="justify-content:flex-end"><button class="btn plain" id="sClose">Klaar</button></div>`);
+  m.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => { const it = SHOP.find(x=>x.id===b.dataset.buy); if(pr.bones>=it.price){ pr.bones -= it.price; pr.owned[it.id]=true; pr.wear[it.id]=true; save(); openShop(); toast(`${it.name} gekocht!`); } });
+  m.querySelectorAll('[data-wear]').forEach(b => b.onclick = () => { pr.wear[b.dataset.wear] = !pr.wear[b.dataset.wear]; save(); openShop(); });
+  m.querySelector('#sClose').onclick = () => { closeModal(); openMap(); };
+}
+
+/* instellingen */
+function openSettings(){
+  const pr = cur(), s = pr.settings, p = curP();
+  const seg = (key, opts) => `<div class="seg" data-key="${key}">${opts.map(([v,l])=>`<button data-v="${v}" class="${String(s[key])===String(v)?'on':''}">${l}</button>`).join('')}</div>`;
+  const m = modal(`<p class="eyebrow">Voor ouders en leraren</p><h2 class="mk" style="font-size:34px;margin:4px 0 8px">Instellingen voor ${p.name}</h2>
+    <div class="set-row"><span>Letters bij de noot</span>${seg('letters',[['always','Altijd'],['help','Bij hulp'],['never','Nooit']])}</div>
+    <div class="set-row"><span>De noot tussen A en C heet</span>${seg('hName',[['H','H (Zweeds)'],['B','B']])}</div>
+    <div class="set-row"><span>Hulp vanzelf na</span>${seg('hintDelay',[[4,'4 sec'],[7,'7 sec'],[12,'12 sec'],[0,'Nooit']])}</div>
+    <div class="set-row"><span>Octaaf moet kloppen<br><small style="color:var(--ink-soft)">Uit: alleen de toonnaam telt. De ${p.instr==='harp'?'harp':'cello'} wordt soms een octaaf verkeerd gehoord.</small></span>${seg('strict',[[false,'Uit'],[true,'Aan']])}</div>
+    <div class="set-row"><span>Microfoon-gevoeligheid<br><small style="color:var(--ink-soft)">Hoger als Bounty je niet hoort, lager bij veel lawaai.</small></span>${seg('sens',[[1,'1'],[2,'2'],[3,'3'],[4,'4'],[5,'5']])}</div>
+    <div class="set-row"><span>Spelen zonder instrument (tikken)</span>${seg('tap',[[false,'Uit'],[true,'Aan']])}</div>
+    <div class="set-row"><span>Geluidjes</span>${seg('sound',[[true,'Aan'],[false,'Uit']])}</div>
+    <div class="set-row"><button class="btn small red" id="sReset">Voortgang wissen</button><button class="btn plain" id="sClose">Klaar</button></div>`);
+  m.querySelectorAll('.seg').forEach(sg => sg.querySelectorAll('button').forEach(b => b.onclick = () => {
+    let v = b.dataset.v; if(v==='true') v = true; else if(v==='false') v = false; else if(!isNaN(+v)) v = +v;
+    s[sg.dataset.key] = v; save(); openSettings();
+  }));
+  m.querySelector('#sReset').onclick = () => {
+    const c = modal(`<h2 class="mk" style="font-size:30px">Alles van ${p.name} wissen?</h2><p style="margin:8px 0 14px">Botten, sterren, spullen en missies gaan terug naar het begin.</p>
+      <div class="row"><button class="btn red" id="rYes">Ja, wissen</button><button class="btn plain" id="rNo">Nee</button></div>`);
+    c.querySelector('#rYes').onclick = () => { const keep = pr.settings; S.p[p.id] = blankProfile(); S.p[p.id].settings = keep; save(); closeModal(); openMap(); };
+    c.querySelector('#rNo').onclick = openSettings;
+  };
+  m.querySelector('#sClose').onclick = () => { closeModal(); openMap(); };
+}
+
+/* knoppen */
+$('btnFree').onclick = async () => { if(await needMic()) startGame('free'); };
+$('btnShop').onclick = openShop;
+$('btnSettings').onclick = openSettings;
+$('btnSwitch').onclick = () => { curId = null; renderTitle(); };
+$('btnQuit').onclick = () => { stopGame(); openMap(); };
+$('btnHelp').onclick = () => { if(G && !G.busy) setHelp('manual'); };
+$('btnListen').onclick = () => { if(G && G.target!=null) playTone(G.target); };
+document.addEventListener('keydown', e => { if(e.key==='Escape' && !$('modal').hidden && !G) { closeModal(); } });
+
+renderTitle();
+// testhaakje: BN.sim(60) doet alsof er een C4 klinkt
+window.BN = {audio: () => ({floor:AUDIO.floor, level:AUDIO.level, on:AUDIO.on, sr: AUDIO.ctx && AUDIO.ctx.sampleRate}), sim: m => onHeard(m, 'sim'), state: () => ({G, S}), parse, renderStaff, setPlayer: id => { curId = id; }};
+</script>
+</body>
+</html>
