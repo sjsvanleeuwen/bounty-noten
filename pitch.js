@@ -81,7 +81,25 @@
   };
   Stabilizer.prototype.reset = function () { this.last = null; this.count = 0; this.reported = null; };
 
-  const api = { detectPitch, freqToMidi, midiToFreq, Stabilizer };
+  /* Aanzet-detectie: herkent een nieuwe streek of tokkel, ook als de toonhoogte gelijk blijft.
+     Twee signalen: een plotselinge sprong in volume (harp), of een dip gevolgd door herstel (strijkwissel). */
+  function OnsetDetector() { this.env = 0; this.peak = 0; this.trough = 1; this.lastT = -1e9; }
+  OnsetDetector.prototype.push = function (rms, gate, t) {
+    let onset = false;
+    if (rms > gate && t - this.lastT > 140) {
+      if (this.env > 0 && rms > this.env * 1.35) onset = true;                             // tokkel
+      else if (this.trough < this.peak * 0.72 && rms > this.trough * 1.22 && rms > this.peak * 0.8) onset = true; // streek
+    }
+    if (onset) { this.lastT = t; this.peak = rms; this.trough = rms; }
+    else {
+      this.peak = Math.max(rms, this.peak * 0.97);
+      this.trough = rms > this.peak * 0.9 ? rms : Math.min(this.trough, rms);
+    }
+    this.env = this.env ? this.env * 0.8 + rms * 0.2 : rms;
+    return onset;
+  };
+
+  const api = { detectPitch, freqToMidi, midiToFreq, Stabilizer, OnsetDetector };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.BNPitch = api;
 })(typeof window !== 'undefined' ? window : globalThis);

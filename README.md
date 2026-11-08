@@ -7,6 +7,8 @@ Je ziet een noot op de notenbalk en speelt hem op je eigen instrument. De laptop
 - **Lauren · Harp**: twee notenbalken (viool- en bassleutel), van G2 tot G5. De greephulp wijst de snaar aan vanaf de rode C of de donkere F.
 - **Julian · Cello**: bassleutel, eerste positie (C2 tot D4). De greephulp laat de snaar en de vinger zien.
 
+**Liedjes spelen**: acht liedjes waarvan de melodie vrij te gebruiken is (o.a. Stille Nacht, Vader Jacob, Blinka lilla stjärna, Ode an die Freude, Jingle Bells), met echte notenwaarden op de balk. Bounty wacht bij elke noot tot hij goed is; met *Laat horen* hoor je hoe de regel klinkt. Voor de cello staat Stille Nacht in G groot (met Fis, D-snaar vinger 3).
+
 De hulp verschijnt bij een nieuwe noot, na een verkeerde noot, of als je een tijdje niets goed speelt. Ouders kunnen dit regelen onder *Instellingen*.
 
 De microfoon werkt alleen via https, dus open het spel via GitHub Pages, niet als los bestand. De voortgang wordt alleen in de browser van dat apparaat bewaard.

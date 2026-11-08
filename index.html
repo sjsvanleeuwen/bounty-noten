@@ -78,6 +78,14 @@ p{margin:0;line-height:1.45}
 .mcard.locked.boss{background:#d7cfe0}
 .mcard.locked::after{content:"🔒";position:absolute;right:10px;top:8px;font-size:26px}
 .mcard.boss{background:#e3d3f5}
+.mcard.song .num{font-size:30px}
+.mcard .sub{font-size:14px;color:var(--ink-soft);line-height:1.2}
+.mcard .newn{font-size:14px;color:#b0453b}
+.songbar{display:flex;align-items:center;gap:8px;font-size:18px;background:var(--paper);border:3px solid var(--ink);border-radius:999px;padding:2px 12px}
+.songbar .track{width:150px;height:12px;border:2px solid var(--ink);border-radius:6px;background:#fff;overflow:hidden}
+.songbar .track i{display:block;height:100%;background:var(--green);transition:width .3s}
+#bountyActor{transition:left .5s ease-out}
+.confetti{position:fixed;z-index:55;pointer-events:none;width:12px;height:16px;border:2px solid var(--ink);border-radius:3px}
 .map-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:18px}
 
 /* spelscherm */
@@ -177,11 +185,24 @@ p{margin:0;line-height:1.45}
     <div class="story" id="mapStory"></div>
     <div class="missions" id="missionGrid"></div>
     <div class="map-actions">
+      <button class="btn green" id="btnSongs">🎶 Liedjes spelen</button>
       <button class="btn blue" id="btnFree">🎵 Vrij oefenen</button>
       <button class="btn" id="btnShop">🛍️ Bounty Winkel</button>
       <button class="btn plain" id="btnSettings">⚙️ Instellingen</button>
       <button class="btn plain" id="btnSwitch">👋 Andere speler</button>
     </div>
+  </div>
+</section>
+
+<!-- liedjes -->
+<section id="songScreen" class="screen" hidden>
+  <div class="map">
+    <div class="map-head">
+      <h1 class="mk" id="songTitle">Liedjes</h1>
+      <div class="row"><span class="bone-pill" id="songBones"></span><button class="btn plain" id="btnSongsBack">← Kaart</button></div>
+    </div>
+    <div class="story" id="songStory"></div>
+    <div class="missions" id="songGrid"></div>
   </div>
 </section>
 
@@ -227,7 +248,7 @@ const PROFILES = [
   {id:'julian', name:'Julian', instr:'cello', color:'#2f7de1'},
 ];
 const INSTR = {
-  harp:{label:'Harp', clef:'grand', det:{fmin:90,fmax:1050,k:.88,clarity:.75}, range:['G2','G5'],
+  harp:{label:'Harp', clef:'grand', det:{fmin:90,fmax:1050,k:.88,clarity:.75}, range:['G2','C6'],
     story:'Bou heeft zijn notenmonsters op Bountyland afgestuurd. Ze zijn alleen bang voor harpmuziek! Speel de noot die je op de balk ziet, dan blaft Bounty ze weg.',
     missions:[
       {t:'Rechterhand: C, D, E', n:['C4','D4','E4'], b:'De eerste notenmonsters komen eraan! Ze zijn bang voor de middel-C en zijn buren D en E. Zoek de rode C en speel met je rechterhand.'},
@@ -296,7 +317,7 @@ function info(midi){
 function letterName(midi, hName){
   const i = info(midi); let L = LETTERS[i.li];
   if(L==='B') L = hName==='B' ? 'B' : 'H';
-  return L + (i.acc ? 'is' : '');
+  return L + (i.acc ? (hName==='B' ? 'is' : 'iss') : '');
 }
 const NOTE_NAMES_NL = {C:'C',D:'D',E:'E',F:'F',G:'G',A:'A',B:'B',H:'H'};
 
@@ -423,8 +444,9 @@ function renderStaff(opts){
     g += `<g class="tnote">${wholeNote(NOTE_X, y, opts.flash || INK)}</g>`;
     if(opts.showLetter){
       const L = letterName(opts.target, set.hName);
-      g += `<g><rect x="${NOTE_X+40}" y="${y-24}" width="54" height="48" rx="12" fill="#f5b931" stroke="${INK}" stroke-width="3.5"/>
-        <text x="${NOTE_X+67}" y="${y+12}" text-anchor="middle" font-family="Permanent Marker,cursive" font-size="34" fill="${INK}">${L}</text></g>`;
+      const bw = 30 + 20*L.length;
+      g += `<g><rect x="${NOTE_X+40}" y="${y-24}" width="${bw}" height="48" rx="12" fill="#f5b931" stroke="${INK}" stroke-width="3.5"/>
+        <text x="${NOTE_X+40+bw/2}" y="${y+12}" text-anchor="middle" font-family="Permanent Marker,cursive" font-size="34" fill="${INK}">${L}</text></g>`;
     }
   }
   if(opts && opts.ghost != null){
@@ -553,7 +575,7 @@ async function startMic(){
     const src = AUDIO.ctx.createMediaStreamSource(stream);
     const an = AUDIO.ctx.createAnalyser(); an.fftSize = 2048; an.smoothingTimeConstant = 0;
     src.connect(an);
-    Object.assign(AUDIO, {stream, an, buf:new Float32Array(an.fftSize), work:new Float32Array(an.fftSize), nsdf:new Float32Array(1200), on:true, stab:new BNPitch.Stabilizer(3)});
+    Object.assign(AUDIO, {stream, an, buf:new Float32Array(an.fftSize), work:new Float32Array(an.fftSize), nsdf:new Float32Array(1200), on:true, stab:new BNPitch.Stabilizer(3), onset:new BNPitch.OnsetDetector()});
     // ruisvloer meten
     let samples = [], t0 = performance.now();
     await new Promise(res => { (function m(){ an.getFloatTimeDomainData(AUDIO.buf); let r=0; for(const v of AUDIO.buf) r+=v*v; samples.push(Math.sqrt(r/AUDIO.buf.length)); if(performance.now()-t0<700) requestAnimationFrame(m); else res(); })(); });
@@ -567,7 +589,7 @@ let lastAnalyse = 0;
 function listenLoop(t){
   if(!AUDIO.on) return;
   requestAnimationFrame(listenLoop);
-  if(t - lastAnalyse < 30) return;   // ongeveer 33 keer per seconde
+  if(t - lastAnalyse < 20) return;   // ongeveer 50 keer per seconde
   lastAnalyse = t;
   AUDIO.an.getFloatTimeDomainData(AUDIO.buf);
   const set = cur() ? cur().settings : DEFAULT_SETTINGS;
@@ -577,6 +599,8 @@ function listenLoop(t){
   AUDIO.level = Math.min(1, d.rms / (gate*6));
   const bar = document.getElementById('micBar'); if(bar) bar.style.width = (AUDIO.level*100).toFixed(0)+'%';
   if(performance.now() < AUDIO.muteUntil){ AUDIO.stab.reset(); return; }
+  if(AUDIO.onset.push(d.rms, gate, t)){ AUDIO.stab.reset(); AUDIO.onsets = (AUDIO.onsets||0)+1; }
+  if(window.BN_DEBUG){ (AUDIO.log = AUDIO.log||[]).push([Math.round(t), +d.rms.toFixed(3), d.freq?Math.round(BNPitch.freqToMidi(d.freq)):0, +d.clarity.toFixed(2)]); }   // nieuwe streek/tokkel: zelfde noot mag opnieuw tellen
   const midi = d.freq && d.clarity > det.clarity ? Math.round(BNPitch.freqToMidi(d.freq)) : null;
   const rep = AUDIO.stab.push(midi);
   if(rep != null) onHeard(rep, 'mic');
@@ -603,18 +627,18 @@ function boop(){ // zachte "oei" bij een verkeerde noot - ruis, geen toon
   const src = ctx.createBufferSource(); src.buffer = buf; const lp = ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=500;
   const g = ctx.createGain(); g.gain.value = .25; src.connect(lp).connect(g).connect(ctx.destination); src.start();
 }
-function playTone(midi){
-  const ctx = ensureCtx(), f = BNPitch.midiToFreq(midi), t = ctx.currentTime + 0.02;
-  const instr = curP().instr, dur = instr==='harp' ? 1.8 : 1.6;
-  mute((dur+0.6)*1000);
+function playTone(midi, at, len){
+  const ctx = ensureCtx(), f = BNPitch.midiToFreq(midi), t = at || ctx.currentTime + 0.02;
+  const instr = curP().instr, dur = len || (instr==='harp' ? 1.8 : 1.6);
+  if(!at) mute((dur+0.6)*1000);
   const out = ctx.createGain(); out.connect(ctx.destination);
   if(instr==='harp'){
-    [[1,.6],[2,.35],[3,.12],[4,.06]].forEach(([k,a])=>{ const o=ctx.createOscillator(); o.frequency.value=f*k; const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(a*.5,t+.008); g.gain.exponentialRampToValueAtTime(0.0001,t+dur/(k*.7)); o.connect(g).connect(out); o.start(t); o.stop(t+dur); });
+    [[1,.6],[2,.35],[3,.12],[4,.06]].forEach(([k,a])=>{ const o=ctx.createOscillator(); o.frequency.value=f*k; const g=ctx.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(a*.5,t+.008); g.gain.exponentialRampToValueAtTime(0.0001,t+dur/(k*.7)); o.connect(g).connect(out); o.start(t); o.stop(t+Math.max(dur,1.2)); });
   } else {
     const o = ctx.createOscillator(); o.type='sawtooth'; o.frequency.value=f;
     const lfo = ctx.createOscillator(); lfo.frequency.value=5.2; const lg = ctx.createGain(); lg.gain.value=f*0.004; lfo.connect(lg).connect(o.frequency);
     const lp = ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value = Math.min(2400, f*7); lp.Q.value=.7;
-    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(.28,t+.12); g.gain.setValueAtTime(.28,t+dur-.3); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(.28,t+.12); g.gain.setValueAtTime(.28,t+Math.max(.13,dur-.12)); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
     o.connect(lp).connect(g).connect(out); o.start(t); lfo.start(t); o.stop(t+dur); lfo.stop(t+dur);
   }
 }
@@ -626,7 +650,7 @@ let curId = null;
 function curP(){ return PROFILES.find(p=>p.id===curId); }
 function cur(){ return curId ? S.p[curId] : null; }
 const $ = id => document.getElementById(id);
-function show(id){ for(const s of ['title','mapScreen','play']) $(s).hidden = s!==id; }
+function show(id){ for(const s of ['title','mapScreen','songScreen','play']) $(s).hidden = s!==id; }
 function toast(msg){ const t = document.createElement('div'); t.className='toast'; t.textContent = msg; document.body.append(t); setTimeout(()=>t.remove(), 2600); }
 
 function renderTitle(){
@@ -704,7 +728,8 @@ function startGame(mi){
     notes = []; for(let i=0;i<pr.unlocked && i<ins.missions.length;i++) for(const n of ins.missions[i].n) if(!notes.includes(n)) notes.push(n);
     len = Infinity; title = 'Vrij oefenen';
   } else { const m = ins.missions[mi]; notes = m.n.slice(); len = m.len || 10; boss = !!m.boss; title = m.t; }
-  G = {mi, free, notes: notes.map(parse), len, boss, idx:0, target:null, prevTarget:null, prevAt:0,
+  $('monsterActor').style.height = '';
+  G = {mode:'mission', mi, free, notes: notes.map(parse), len, boss, idx:0, target:null, prevTarget:null, prevAt:0,
        helps:0, wrongs:0, bones:0, helpShown:false, intro:false, startT:0, lastWrong:0, queue:[], timer:null, busy:false, hp: boss ? len : 0, monsterN:0};
   // eerst elke noot een keer, dan op gevoel
   G.queue = shuffle(G.notes.slice());
@@ -760,6 +785,7 @@ function nextNote(){
   G.timer = setInterval(tick, 250);
 }
 function drawNote(extra){
+  if(G && G.mode==='song'){ const n = G.notes[Math.min(G.pos, G.notes.length-1)]; return renderSongLine(n.li, extra); }
   const set = cur().settings;
   const showLetter = set.letters==='always' || (set.letters==='help' && G.helpShown);
   renderStaff(Object.assign({target:G.target, showLetter}, extra||{}));
@@ -768,6 +794,10 @@ function drawNote(extra){
 function tick(){
   if(!G || G.busy) return;
   const set = cur().settings, el = (performance.now()-G.startT)/1000;
+  if(G.mode==='song' && G.pos>0 && G.notes[G.pos-1].midi===G.target && el > 3 && !G.repeatTip){
+    G.repeatTip = true;
+    say($('bountyActor'), curP().instr==='harp' ? 'Tokkel dezelfde snaar nog een keer!' : 'Nieuwe streek: dezelfde noot nog een keer!', 2600);
+  }
   if(!G.helpShown && set.hintDelay>0 && el > set.hintDelay) setHelp('auto');
 }
 function spawnMonster(){
@@ -805,6 +835,7 @@ function bindTaps(){
 }
 
 function onHeard(midi, src){
+  if(G && G.mode==='song') return songHeard(midi, src);
   if(!G || G.busy || G.target == null) return;
   const set = cur().settings;
   const pcOk = ((midi - G.target) % 12 + 12) % 12 === 0;
@@ -903,6 +934,258 @@ function finishMission(){
   }, isBoss ? 900 : 300);
 }
 
+/* =========================================================
+   Liedjes (melodieën van vóór 1929, vrij te gebruiken)
+   Genoteerd in C groot; per instrument verschoven zodat het in bereik ligt.
+   Duur: w=hele, h.=halve met punt, h=halve, q.=kwart met punt, q=kwart, e=achtste
+   ========================================================= */
+const SONGS = [
+  {id:'twinkle', t:'Blinka lilla stjärna', sub:'Twinkle twinkle · Altijd is Kortjakje ziek', lvl:1, ts:[4,4], bpm:88, shift:{harp:0, cello:-12}, lines:[
+    'C4q C4q G4q G4q | A4q A4q G4h', 'F4q F4q E4q E4q | D4q D4q C4h',
+    'G4q G4q F4q F4q | E4q E4q D4h', 'G4q G4q F4q F4q | E4q E4q D4h',
+    'C4q C4q G4q G4q | A4q A4q G4h', 'F4q F4q E4q E4q | D4q D4q C4h']},
+  {id:'mary', t:'Mary had a little lamb', sub:'Engels kinderliedje', lvl:1, ts:[4,4], bpm:92, shift:{harp:0, cello:-12}, lines:[
+    'E4q D4q C4q D4q | E4q E4q E4h', 'D4q D4q D4h | E4q G4q G4h',
+    'E4q D4q C4q D4q | E4q E4q E4q E4q', 'D4q D4q E4q D4q | C4w']},
+  {id:'hans', t:'Hänschen klein', sub:'Lightly Row · Duits kinderliedje', lvl:1, ts:[4,4], bpm:92, shift:{harp:0, cello:-12}, lines:[
+    'G4q E4q E4h | F4q D4q D4h', 'C4q D4q E4q F4q | G4q G4q G4h',
+    'G4q E4q E4h | F4q D4q D4h', 'C4q E4q G4q G4q | C4w',
+    'D4q D4q D4q D4q | D4q E4q F4h', 'E4q E4q E4q E4q | E4q F4q G4h',
+    'G4q E4q E4h | F4q D4q D4h', 'C4q E4q G4q G4q | C4w']},
+  {id:'jacob', t:'Vader Jacob', sub:'Broder Jakob · Frère Jacques', lvl:2, ts:[4,4], bpm:96, shift:{harp:12, cello:-12}, lines:[
+    'C4q D4q E4q C4q | C4q D4q E4q C4q', 'E4q F4q G4h | E4q F4q G4h',
+    'G4e A4e G4e F4e E4q C4q | G4e A4e G4e F4e E4q C4q', 'C4q G3q C4h | C4q G3q C4h']},
+  {id:'lune', t:'Au clair de la lune', sub:'Frans kinderliedje', lvl:2, ts:[4,4], bpm:92, shift:{harp:12, cello:-12}, lines:[
+    'C4q C4q C4q D4q | E4h D4h', 'C4q E4q D4q D4q | C4w',
+    'C4q C4q C4q D4q | E4h D4h', 'C4q E4q D4q D4q | C4w',
+    'D4q D4q D4q D4q | A3h A3h', 'D4q C4q B3q A3q | G3w',
+    'C4q C4q C4q D4q | E4h D4h', 'C4q E4q D4q D4q | C4w']},
+  {id:'ode', t:'Ode an die Freude', sub:'Beethoven (1824)', lvl:2, ts:[4,4], bpm:96, shift:{harp:12, cello:-12}, lines:[
+    'E4q E4q F4q G4q | G4q F4q E4q D4q', 'C4q C4q D4q E4q | E4q. D4e D4h',
+    'E4q E4q F4q G4q | G4q F4q E4q D4q', 'C4q C4q D4q E4q | D4q. C4e C4h',
+    'D4q D4q E4q C4q | D4q E4e F4e E4q C4q', 'D4q E4e F4e E4q D4q | C4q D4q G3h',
+    'E4q E4q F4q G4q | G4q F4q E4q D4q', 'C4q C4q D4q E4q | D4q. C4e C4h']},
+  {id:'jingle', t:'Jingle Bells', sub:'Het refrein (1857)', lvl:2, ts:[4,4], bpm:104, shift:{harp:0, cello:-12}, lines:[
+    'E4q E4q E4h | E4q E4q E4h', 'E4q G4q C4q. D4e | E4w',
+    'F4q F4q F4q. F4e | F4q E4q E4q E4e E4e', 'E4q D4q D4q E4q | D4h G4h',
+    'E4q E4q E4h | E4q E4q E4h', 'E4q G4q C4q. D4e | E4w',
+    'F4q F4q F4q. F4e | F4q E4q E4q E4e E4e', 'G4q G4q F4q D4q | C4w']},
+  {id:'stille', t:'Stille Nacht', sub:'Stilla natt · Silent Night (1818)', lvl:3, ts:[3,4], bpm:84, shift:{harp:0, cello:-17}, lines:[
+    'G4q. A4e G4q | E4h. | G4q. A4e G4q | E4h.', 'D5h D5q | B4h. | C5h C5q | G4h.',
+    'A4h A4q | C5q. B4e A4q | G4q. A4e G4q | E4h.', 'A4h A4q | C5q. B4e A4q | G4q. A4e G4q | E4h.',
+    'D5h D5q | F5q. D5e B4q | C5h. | E5h.', 'C5q G4q E4q | G4q. F4e D4q | C4h. | C4h.']},
+];
+const DUR = {'w':4,'h.':3,'h':2,'q.':1.5,'q':1,'e':0.5};
+function songNotes(song, instr){
+  const sh = song.shift[instr] || 0, out = [];
+  song.lines.forEach((line, li) => {
+    let beat = 0, bar = 0;
+    for(const tok of line.trim().split(/\s+/)){
+      if(tok === '|'){ bar++; continue; }
+      const m = tok.match(/^([A-G])(#?)(\d)(w|h\.|h|q\.|q|e)$/);
+      if(!m) throw new Error('Onbekende noot: '+tok);
+      const midi = parse(m[1]+m[3]) + (m[2]?1:0) + sh;
+      out.push({midi, dur:DUR[m[4]], li, beat, bar});
+      beat += DUR[m[4]];
+    }
+  });
+  return out;
+}
+
+function openSongs(){
+  const p = curP(), pr = cur(), set = pr.settings;
+  $('songTitle').textContent = `Liedjes · ${p.name}`;
+  $('songBones').innerHTML = boneSVG() + pr.bones;
+  $('songStory').innerHTML = `${bountySVG(pr.wear)}<p>Speel een echt liedje! Bounty wacht bij elke noot tot je hem goed speelt. Met <b>🔊 Laat horen</b> hoor je hoe het moet klinken.</p>`;
+  const stars = pr.songStars || {};
+  $('songGrid').innerHTML = SONGS.map(sg => {
+    const ns = songNotes(sg, p.instr);
+    const uniq = [...new Set(ns.map(n=>n.midi))];
+    const fresh = uniq.filter(m => !(pr.mastery[m] && pr.mastery[m].seen >= 2));
+    const st = stars[sg.id] || 0;
+    const letters = set.letters==='never' ? `${uniq.length} verschillende noten` : [...new Set(ns.map(n=>letterName(n.midi,set.hName)))].join(' ');
+    return `<button class="mcard song" data-id="${sg.id}">
+      <span class="num">${'♪'.repeat(sg.lvl)}</span><span class="t">${sg.t}</span><span class="sub">${sg.sub}</span>
+      <span class="stars">${[1,2,3].map(k=> k<=st?'<i>★</i>':'★').join('')}</span>
+      ${fresh.length ? `<span class="newn">✨ ${fresh.length} ${fresh.length===1?'noot':'noten'} nog niet geoefend</span>` : ''}
+      <span class="notes">${letters}</span></button>`;
+  }).join('');
+  $('songGrid').querySelectorAll('.mcard').forEach(b => b.onclick = async () => { if(await needMic()) startSong(b.dataset.id); });
+  show('songScreen');
+}
+
+function startSong(id){
+  const p = curP(), pr = cur(), song = SONGS.find(s=>s.id===id);
+  G = {mode:'song', song, notes: songNotes(song, p.instr), pos:0, target:null, prevTarget:null, prevAt:0,
+       helps:0, wrongs:0, helpShown:false, usedHelp:false, intro:false, startT:0, lastWrong:0, timer:null, busy:false};
+  show('play');
+  $('hudWho').textContent = p.name; $('hudWho').style.background = p.id==='lauren' ? '#ffe3dc' : '#dbe9ff';
+  $('hudTitle').textContent = song.t;
+  $('hudMic').classList.toggle('off', !AUDIO.on);
+  $('micLabel').textContent = pr.settings.tap ? '👆' : '🎤';
+  updateBones();
+  const ba = $('bountyActor'); ba.innerHTML = bountySVG(pr.wear); ba.style.left = '3%';
+  const mon = $('monsterActor'); mon.innerHTML = ''; mon.className = 'actor'; mon.style.transition='none'; mon.style.left='105%';
+  document.querySelectorAll('.hpbar').forEach(e=>e.remove());
+  // podium aan de rechterkant: daar loopt Bounty naartoe
+  mon.style.left = '80%'; mon.style.height = '60%';
+  mon.innerHTML = `<svg viewBox="0 0 120 120" style="height:100%;width:auto"><path d="M10 110 L110 110 L104 70 L16 70Z" fill="#f5b931" stroke="${INK}" stroke-width="5" stroke-linejoin="round"/><text x="60" y="100" text-anchor="middle" font-family="Permanent Marker,cursive" font-size="22">PODIUM</text><path d="M30 70 V20 M90 70 V20" stroke="${INK}" stroke-width="5"/><path d="M24 20 H96" stroke="#e4483b" stroke-width="10" stroke-linecap="round"/></svg>`;
+  songNext(true);
+}
+function songProgress(){
+  const n = G.notes.length;
+  $('hudDots').innerHTML = `<span class="songbar">🎵 <span class="track"><i style="width:${(100*G.pos/n).toFixed(0)}%"></i></span> ${G.pos}/${n}</span>`;
+  $('bountyActor').style.left = (3 + 42*G.pos/n) + '%';
+}
+function songNext(first){
+  if(!G) return;
+  if(G.pos >= G.notes.length) return finishSong();
+  G.prevTarget = G.target; G.prevAt = performance.now();
+  const n = G.notes[G.pos], pr = cur();
+  G.target = n.midi;
+  const ms = pr.mastery[n.midi];
+  G.intro = !ms || ms.seen < 2;
+  G.helpShown = false; G.usedHelp = false; G.startT = performance.now(); G.busy = false; G.repeatTip = false;
+  setHelp(G.intro ? 'intro' : false);
+  songProgress();
+  clearInterval(G.timer); G.timer = setInterval(tick, 250);
+}
+function songHeard(midi, src){
+  if(G.busy || G.target == null) return;
+  const set = cur().settings;
+  const pcOk = ((midi - G.target) % 12 + 12) % 12 === 0;
+  if(pcOk && (!set.strict || midi === G.target)){
+    const n = G.notes[G.pos];
+    G.pos++;
+    const r = $('bountyActor').getBoundingClientRect();
+    const e = document.createElement('div'); e.className='fly'; e.textContent = ['♪','♫','♬'][G.pos%3];
+    e.style.left = (r.left + r.width*0.75)+'px'; e.style.top = (r.top)+'px'; document.body.append(e);
+    e.animate([{transform:'translateY(0)',opacity:1},{transform:'translate(30px,-80px) rotate(25deg)',opacity:0}],{duration:800}).onfinish=()=>e.remove();
+    $('bountyActor').animate([{transform:'translateY(0)'},{transform:'translateY(-8%)'},{transform:'translateY(0)'}],{duration:260});
+    const lineDone = G.pos >= G.notes.length || G.notes[G.pos].li !== n.li;
+    if(lineDone){ G.busy = true; renderSongLine(n.li, {doneAll:true}); setTimeout(()=>songNext(), 450); }
+    else songNext();
+    return;
+  }
+  if(G.prevTarget!=null && (midi - G.prevTarget) % 12 === 0 && performance.now() - G.prevAt < 1500) return; // naklinken
+  const now = performance.now();
+  if(now - G.lastWrong < 900) return;
+  G.lastWrong = now; G.wrongs++;
+  if(!G.helpShown) setHelp('wrong');
+  drawNote({ghost: midi});
+  clearTimeout(G.ghostT); G.ghostT = setTimeout(()=>{ if(G && !G.busy) drawNote(); }, 1600);
+}
+
+/* een regel van het liedje tekenen, met echte notenwaarden */
+function renderSongLine(li, opts){
+  opts = opts || {};
+  const p = curP(), set = cur().settings, song = G.song;
+  const clef = p.instr==='harp' ? 'treble' : 'bass';
+  const st = {clef, top:110, bottom:110+4*SP, bstep: clef==='treble' ? 30 : 18};
+  const notes = G.notes.filter(n => n.li === li);
+  const first = G.notes.indexOf(notes[0]);
+  // ruimte per noot: langere noten iets meer ruimte, maar nooit te krap voor kinderogen
+  const xs = li===0 ? 150 : 118;
+  const unitPos = [], barUnits = []; let u = 0.4;
+  notes.forEach((n,k) => {
+    if(k>0 && n.bar !== notes[k-1].bar){ barUnits.push(u + 0.15); u += 0.7; }
+    if(info(n.midi).acc) u += 0.6;
+    unitPos.push(u);
+    u += 1.15 + Math.pow(n.dur, 0.6)*0.85 + (n.dur===3||n.dur===1.5 ? 0.35 : 0);
+  });
+  const scale = Math.max(34, (606 - xs) / u);
+  const xe = Math.round(xs + u*scale), W = xe + 34;
+  let g = '';
+  for(let i=0;i<5;i++){ const y = st.top + i*SP; g += `<line x1="40" x2="${xe}" y1="${y}" y2="${y}" stroke="${INK}" stroke-width="2.6"/>`; }
+  g += `<text x="${clef==='treble'?52:54}" y="${st.bottom}" font-family="Noto Music" font-size="${SP*4.1}" fill="${INK}">${clef==='treble'?'\u{1D11E}':'\u{1D122}'}</text>`;
+  g += `<line x1="40" x2="40" y1="${st.top}" y2="${st.bottom}" stroke="${INK}" stroke-width="3"/>`;
+  if(li===0){
+    for(const [k,v] of [[0,song.ts[0]],[1,song.ts[1]]]) g += `<text x="128" y="${st.top + SP*(k?3.85:1.85)}" text-anchor="middle" font-family="Baloo 2,sans-serif" font-weight="800" font-size="${SP*2.3}" fill="${INK}">${v}</text>`;
+  }
+  // maatstrepen
+  const bars = notes[notes.length-1].bar + 1;
+  for(let b=1;b<=bars;b++){
+    const x = b===bars ? xe : xs + barUnits[b-1]*scale;
+    const last = b===bars && li === song.lines.length-1;
+    g += `<line x1="${x}" x2="${x}" y1="${st.top}" y2="${st.bottom}" stroke="${INK}" stroke-width="${last?6:2.6}"/>`;
+    if(last) g += `<line x1="${x-9}" x2="${x-9}" y1="${st.top}" y2="${st.bottom}" stroke="${INK}" stroke-width="2.4"/>`;
+  }
+  const midStep = st.bstep + 4;
+  let curX = null, curY = null;
+  notes.forEach((n, k) => {
+    const idx = first + k, inf = info(n.midi), y = noteY(st, inf.step);
+    const x = xs + unitPos[k]*scale + 14;
+    const done = opts.doneAll || idx < G.pos, now = !opts.doneAll && idx === G.pos;
+    const col = done ? '#2e9c4c' : now ? '#e46f1b' : INK;
+    if(now){ curX = x; curY = y; g += `<rect x="${x-24}" y="${st.top-60}" width="48" height="${4*SP+120}" rx="14" fill="#ffe9a8" opacity=".8"/>`; }
+    g += ledgerLines(st, inf.step, x, 24).replaceAll(INK, col);
+    const hollow = n.dur >= 2;
+    g += `<ellipse cx="${x}" cy="${y}" rx="12.5" ry="9" transform="rotate(-20 ${x} ${y})" fill="${hollow?'none':col}" stroke="${col}" stroke-width="${hollow?4.2:1}"/>`;
+    if(inf.acc) g += `<text x="${x-30}" y="${y+10}" font-family="Noto Music" font-size="34" fill="${col}">♯</text>`;
+    if(n.dur < 4){
+      const up = inf.step < midStep;
+      const sx = up ? x + 11 : x - 11, sy2 = up ? y - 3.4*SP : y + 3.4*SP;
+      g += `<line x1="${sx}" x2="${sx}" y1="${y}" y2="${sy2}" stroke="${col}" stroke-width="3"/>`;
+      if(n.dur === 0.5) g += up ? `<path d="M${sx} ${sy2} q14 14 12 34" fill="none" stroke="${col}" stroke-width="4"/>` : `<path d="M${sx} ${sy2} q14 -14 12 -34" fill="none" stroke="${col}" stroke-width="4"/>`;
+    }
+    if(n.dur === 3 || n.dur === 1.5){ const dy = (inf.step - st.bstep) % 2 === 0 ? -SP/2 : 0; g += `<circle cx="${x+20}" cy="${y+dy}" r="4" fill="${col}"/>`; }
+    const showL = set.letters==='always' || (set.letters==='help' && now && G.helpShown);
+    if(showL) g += `<text x="${x}" y="${Math.max(st.bottom + 60, y + 52)}" text-anchor="middle" font-family="Permanent Marker,cursive" font-size="${now?32:22}" fill="${now?'#e46f1b':INK}">${letterName(n.midi, set.hName)}</text>`;
+    if(now) g += `<path d="M${x} ${st.top-26} l-10 -16 h20z" fill="#e46f1b" stroke="${INK}" stroke-width="2.5"/>`;
+  });
+  if(opts.ghost != null && curX != null){
+    const gi = info(opts.ghost), gy = noteY(st, gi.step);
+    if(Math.abs(gi.step - midStep) <= 14){
+      g += `<g opacity=".8">${ledgerLines(st, gi.step, curX+30, 18).replaceAll(INK,'#b0453b')}<ellipse cx="${curX+30}" cy="${gy}" rx="12.5" ry="9" transform="rotate(-20 ${curX+30} ${gy})" fill="#e4483b"/></g>`;
+      g += `<text x="${curX+30}" y="${st.top-70}" text-anchor="middle" font-family="Baloo 2,sans-serif" font-weight="800" font-size="20" fill="#b0453b">jij speelde</text>`;
+    }
+  }
+  const svg = $('staff');
+  svg.setAttribute('viewBox', `0 0 ${W} 330`);
+  svg.innerHTML = g;
+  $('staffTag').innerHTML = `<span class="tag">Regel ${li+1} van ${song.lines.length}</span>` + (G.intro && !opts.doneAll ? ` <span class="tag new">✨ Nieuwe noot!</span>` : '');
+}
+function playSongRest(){
+  if(!G || G.mode!=='song') return;
+  const ctx = ensureCtx(), spb = 60 / G.song.bpm;
+  const li = G.notes[Math.min(G.pos, G.notes.length-1)].li;
+  const rest = G.notes.filter((n,i) => i >= G.pos && n.li === li);
+  let t = ctx.currentTime + 0.05, total = 0;
+  for(const n of rest){ playTone(n.midi, t, n.dur*spb*0.95); t += n.dur*spb; total += n.dur*spb; }
+  mute((total + 0.8)*1000);
+}
+function confetti(){
+  const cols = ['#e4483b','#f5b931','#3bb35a','#2f7de1','#8c5cd6'];
+  for(let i=0;i<60;i++){
+    const c = document.createElement('div'); c.className='confetti'; c.style.background = cols[i%5];
+    c.style.left = (Math.random()*100)+'vw'; c.style.top = '-30px'; document.body.append(c);
+    c.animate([{transform:'translateY(0) rotate(0)'},{transform:`translate(${(Math.random()-.5)*200}px, ${window.innerHeight+60}px) rotate(${Math.random()*720}deg)`}],{duration:1800+Math.random()*1400, easing:'ease-in'}).onfinish=()=>c.remove();
+  }
+}
+function finishSong(){
+  clearInterval(G.timer); G.busy = true;
+  const pr = cur(), song = G.song, n = G.notes.length;
+  const bad = G.helps + G.wrongs;
+  const stars = bad <= 2 ? 3 : bad <= 6 ? 2 : 1;
+  const earned = Math.round(n/3) + stars*2;
+  pr.bones += earned; pr.songStars = pr.songStars || {}; pr.songStars[song.id] = Math.max(pr.songStars[song.id]||0, stars);
+  save(); updateBones(); songProgress();
+  bark(); confetti();
+  const id = song.id;
+  stopGame();
+  setTimeout(()=>{
+    const m = modal(`<p class="eyebrow">Liedje gespeeld!</p>
+      <h2 class="mk" style="font-size:42px;margin:4px 0">${song.t}</h2>
+      <div class="stars-big">${[1,2,3].map(k=>k<=stars?'<i>★</i>':'★').join('')}</div>
+      <p style="font-size:20px;text-align:center">Bounty is bij het podium! Je verdiende ${earned} botten ${boneSVG()}</p>
+      ${stars<3?`<p style="text-align:center;margin-top:6px;color:var(--ink-soft)">Tip: zonder hulp en zonder missers krijg je 3 sterren.</p>`:''}
+      <div class="row" style="margin-top:16px;justify-content:center">
+        <button class="btn green" id="sgAgain">Nog een keer</button><button class="btn plain" id="sgList">Andere liedjes</button></div>`);
+    m.querySelector('#sgAgain').onclick = () => { closeModal(); startSong(id); };
+    m.querySelector('#sgList').onclick = () => { closeModal(); openSongs(); };
+  }, 900);
+}
+
 /* winkel */
 function openShop(){
   const pr = cur();
@@ -951,14 +1234,16 @@ $('btnFree').onclick = async () => { if(await needMic()) startGame('free'); };
 $('btnShop').onclick = openShop;
 $('btnSettings').onclick = openSettings;
 $('btnSwitch').onclick = () => { curId = null; renderTitle(); };
-$('btnQuit').onclick = () => { stopGame(); openMap(); };
+$('btnQuit').onclick = () => { const song = G && G.mode==='song'; stopGame(); if(song) openSongs(); else openMap(); };
+$('btnSongs').onclick = openSongs;
+$('btnSongsBack').onclick = openMap;
 $('btnHelp').onclick = () => { if(G && !G.busy) setHelp('manual'); };
-$('btnListen').onclick = () => { if(G && G.target!=null) playTone(G.target); };
+$('btnListen').onclick = () => { if(!G || G.target==null) return; if(G.mode==='song') playSongRest(); else playTone(G.target); };
 document.addEventListener('keydown', e => { if(e.key==='Escape' && !$('modal').hidden && !G) { closeModal(); } });
 
 renderTitle();
 // testhaakje: BN.sim(60) doet alsof er een C4 klinkt
-window.BN = {audio: () => ({floor:AUDIO.floor, level:AUDIO.level, on:AUDIO.on, sr: AUDIO.ctx && AUDIO.ctx.sampleRate}), sim: m => onHeard(m, 'sim'), state: () => ({G, S}), parse, renderStaff, setPlayer: id => { curId = id; }};
+window.AUDIO_LOG = () => JSON.stringify((AUDIO.log||[]).slice(0,400)); window.BN = {audio: () => ({floor:AUDIO.floor, level:AUDIO.level, on:AUDIO.on, sr: AUDIO.ctx && AUDIO.ctx.sampleRate}), sim: m => onHeard(m, 'sim'), state: () => ({G, S}), parse, renderStaff, setPlayer: id => { curId = id; }};
 </script>
 </body>
 </html>
