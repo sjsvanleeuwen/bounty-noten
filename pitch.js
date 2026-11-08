@@ -99,7 +99,67 @@
     return onset;
   };
 
-  const api = { detectPitch, freqToMidi, midiToFreq, Stabilizer, OnsetDetector };
+  /* Fijne aanzet-detectie op een volume-omhullende met kleine stapjes (bv. 128 samples ≈ 3 ms).
+     - tokkel / aanslag: volume springt binnen ~25 ms flink omhoog
+     - streekwissel: volume zakt kort in (dip) en herstelt binnen ~150 ms
+     - vanuit stilte: geluid begint                                                   */
+  function EnvelopeOnset(opts) {
+    opts = opts || {};
+    this.dipRatio = opts.dipRatio || 0.84;   // hoe diep de dip moet zijn t.o.v. het niveau ervoor
+    this.jump = opts.jump || 1.5;            // hoeveel sterker binnen 25 ms = tokkel
+    this.hist = []; this.e = 0; this.t = 0; this.lastOn = -1e9;
+    this.dip = null; this.below = true;
+  }
+  EnvelopeOnset.prototype.push = function (rms, dt, gate, hf) {
+    // glijdend venster van ~28 ms, zodat lage tonen (C2 = 15 ms per trilling) geen gewiebel geven
+    const n = Math.max(1, Math.round(28 / dt));
+    (this.ring = this.ring || []).push(rms * rms);
+    if (this.ring.length > n) this.ring.shift();
+    let sum = 0; for (const v of this.ring) sum += v;
+    this.e = Math.sqrt(sum / this.ring.length);
+    this.t += dt;
+    const t = this.t, e = this.e;
+    this.hist.push([t, e]);
+    while (this.hist.length && this.hist[0][0] < t - 400) this.hist.shift();
+    let onset = false;
+    const refr = t - this.lastOn > 180;
+    // vanuit stilte
+    if (e > gate * 1.5 && this.below && refr) onset = true;
+    if (e < gate) this.below = true; else if (e > gate * 1.5) this.below = false;
+    // tokkel: sprong t.o.v. 25 ms geleden
+    if (!onset && refr && e > gate * 1.5) {
+      let past = null;
+      for (let i = this.hist.length - 1; i >= 0; i--) if (this.hist[i][0] <= t - 25) { past = this.hist[i][1]; break; }
+      if (past !== null && e > past * this.jump) onset = true;
+    }
+    // streekwissel: dip t.o.v. niveau van de laatste 250 ms, daarna herstel
+    if (!onset) {
+      let ref = 0;
+      for (const [ht, he] of this.hist) if (ht >= t - 250 && ht <= t - 30) ref = Math.max(ref, he);
+      // alleen een snelle val telt (streekwissel); langzaam golven (vibrato, crescendo) niet
+      let past = e;
+      for (let i = this.hist.length - 1; i >= 0; i--) if (this.hist[i][0] <= t - 45) { past = this.hist[i][1]; break; }
+      if (!this.dip && ref > gate * 2 && e < ref * this.dipRatio && past * this.dipRatio > e * 1.02) this.dip = { ref, min: e, t0: t };
+      if (this.dip) {
+        this.dip.min = Math.min(this.dip.min, e);
+        if (t - this.dip.t0 > 160) this.dip = null;                     // geen snel herstel: gewoon zachter geworden
+        else if (t - this.lastOn > 180 && e > this.dip.min * 1.15 && e > this.dip.ref * 0.88) { onset = true; this.dip = null; }
+      }
+    } else this.dip = null;
+    // strijkgeruis: kort veel hoge tonen t.o.v. het normale klankkleur (hf = energie van het verschilsignaal)
+    if (hf != null && this.e > 0) {
+      const ratio = Math.sqrt(hf) / Math.max(1e-6, rms);
+      this.hfAvg = this.hfAvg == null ? ratio : this.hfAvg + (1 - Math.exp(-dt / 250)) * (ratio - this.hfAvg);
+      (this.hfRing = this.hfRing || []).push(ratio); if (this.hfRing.length > Math.max(1, Math.round(12 / dt))) this.hfRing.shift();
+      const hfNow = this.hfRing.reduce((x, y) => x + y, 0) / this.hfRing.length;
+      let ref2 = 0; for (const [ht, he] of this.hist) if (ht >= t - 250) ref2 = Math.max(ref2, he);
+      if (!onset && refr && this.e > gate * 2 && this.e > ref2 * 0.75 && hfNow > this.hfAvg * 1.9 && t > 120) onset = true;
+    }
+    if (onset) this.lastOn = t;
+    return onset;
+  };
+
+  const api = { detectPitch, freqToMidi, midiToFreq, Stabilizer, OnsetDetector, EnvelopeOnset };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.BNPitch = api;
 })(typeof window !== 'undefined' ? window : globalThis);
